@@ -96,7 +96,7 @@ class UserController extends Controller
 
 
 
-    
+
     public function create()
     {
 
@@ -331,34 +331,193 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        $user->load('salaire');
+        // Load the necessary relationships
+        $user->load([
+            'salaire' => function($query) {
+                $query->latest();
+            },
+            'absences',
+            'historiqueSalaires',
+            'historiqueDettes'
+        ]);
+
+        // Get current salary info
+        $currentSalary = $user->salaire()->latest()->first();
+
+        // Get statistics for the user
+        $statistics = [
+            'total_absences' => $user->absences()->count(),
+            'absences_justified' => $user->absences()->where('justifie', true)->count(),
+            'total_dette' => $user->historiqueDettes()->where('status', 'non_payé')->sum('montant'),
+            'derniere_paie' => $user->historiqueSalaires()->latest()->first()?->date,
+            'salaire_actuel' => $currentSalary?->montant ?? 0,
+        ];
+
+        // Get recent activities
+        $recentActivities = collect();
+
+        // Add absences to activities
+        $user->absences()
+            ->latest()
+            ->take(5)
+            ->get()
+            ->each(function ($absence) use ($recentActivities) {
+                $recentActivities->push([
+                    'type' => 'absence',
+                    'title' => 'Absence enregistrée',
+                    'description' => $absence->raison,
+                    'date' => $absence->created_at,
+                    'status' => $absence->justifie ? 'justified' : 'unjustified'
+                ]);
+            });
+
+        // Add salary payments to activities
+        $user->historiqueSalaires()
+            ->latest()
+            ->take(5)
+            ->get()
+            ->each(function ($paiement) use ($recentActivities) {
+                $recentActivities->push([
+                    'type' => 'salaire',
+                    'title' => 'Paiement de salaire',
+                    'description' => "Montant: " . number_format($paiement->montant, 2) . ' DH',
+                    'date' => $paiement->date,
+                    'status' => 'completed'
+                ]);
+            });
+
+        // Add debt history to activities
+        $user->historiqueDettes()
+            ->latest()
+            ->take(5)
+            ->get()
+            ->each(function ($dette) use ($recentActivities) {
+                $recentActivities->push([
+                    'type' => 'dette',
+                    'title' => 'Dette enregistrée',
+                    'description' => "Montant: " . number_format($dette->montant, 2) . ' DH',
+                    'date' => $dette->created_at,
+                    'status' => $dette->status === 'payé' ? 'paid' : 'pending'
+                ]);
+            });
+
+        // Sort activities by date
+        $recentActivities = $recentActivities
+            ->sortByDesc('date')
+            ->take(10)
+            ->values();
 
         return Inertia::render('Users/Edit', [
-            'user' => $user
+            'user' => $user,
+            'statistics' => $statistics,
+            'recentActivities' => $recentActivities,
+            'roles' => [
+                'client' => 'Client',
+                'directeur' => 'Directeur',
+                'comptable' => 'Comptable',
+                'livreur' => 'Livreur'
+            ],
+            'salary_types' => [
+                'par_jour' => 'Par Jour',
+                'par_mois' => 'Par Mois',
+                'par_produit' => 'Par Produit'
+            ]
         ]);
     }
 
-    public function update(Request $request, User $user)
+     public function update(Request $request, User $user)
     {
-        $validated = $request->validate([
+        $rules = [
             'nom' => 'required|string|max:255',
             'prenom' => 'required|string|max:255',
-            'telephone' => 'nullable|string',
             'cin' => 'required|string|unique:users,cin,' . $user->id,
-            'password' => 'nullable|string|min:6',
-            'adresse' => 'nullable|string',
+            'telephone' => 'nullable|string|max:20',
+            'adresse' => 'nullable|string|max:500',
             'role' => 'required|in:client,directeur,comptable,livreur',
             'date_debut' => 'required|date',
             'est_actif' => 'boolean'
-        ]);
+        ];
 
-        $user->update($validated);
+        // Add password validation if provided
+        if ($request->filled('password')) {
+            $rules['password'] = ['required', 'string', 'min:4', 'confirmed'];
+        }
 
-        return redirect()->route('users.index');
+        // Add salary validation for roles that need salary
+        if ($request->role !== 'client') {
+            $rules['type_travail'] = 'required|in:par_jour,par_mois,par_produit';
+            $rules['montant_salaire'] = 'required|numeric|min:0';
+        }
+
+        $validated = $request->validate($rules);
+
+        // Update user data
+        $userData = [
+            'nom' => $validated['nom'],
+            'prenom' => $validated['prenom'],
+            'cin' => $validated['cin'],
+            'telephone' => $validated['telephone'] ?? null,
+            'adresse' => $validated['adresse'] ?? null,
+            'role' => $validated['role'],
+            'date_debut' => $validated['date_debut'],
+            'est_actif' => $validated['est_actif'] ?? true
+        ];
+
+        // Add password if provided
+        if ($request->filled('password')) {
+            $userData['password'] = Hash::make($validated['password']);
+        }
+
+        $user->update($userData);
+
+        // Handle salary updates
+        if ($validated['role'] !== 'client') {
+            // Validate that type_travail is one of the allowed values
+            $allowedTypes = ['par_jour', 'par_mois', 'par_produit'];
+            if (!in_array($validated['type_travail'], $allowedTypes)) {
+                return back()->withErrors(['type_travail' => 'Type de travail invalide.']);
+            }
+
+            // Check if user already has a salary record
+            $existingSalary = $user->salaire()->latest()->first();
+
+            $salaryData = [
+                'type_travail' => $validated['type_travail'],
+                'montant' => number_format((float) $validated['montant_salaire'], 2, '.', ''),
+            ];
+
+            if ($existingSalary) {
+                // Update existing salary record
+                $existingSalary->update($salaryData);
+            } else {
+                // Create new salary record
+                $salaryData['user_id'] = $user->id;
+                $salaryData['date_derniere_paiement'] = null;
+
+                try {
+                    Salaire::create($salaryData);
+                } catch (\Exception $e) {
+                    \Log::error('Salary creation error: ' . $e->getMessage());
+                    return back()->withErrors(['montant_salaire' => 'Erreur lors de la création du salaire.']);
+                }
+            }
+        } else {
+            // If role changed to client, you might want to handle existing salary records
+            // Option 1: Delete salary records (uncomment if needed)
+            // $user->salaire()->delete();
+
+            // Option 2: Keep them for historical purposes (current implementation)
+            // Do nothing - keep existing salary records
+        }
+
+        return redirect()
+            ->route('users.index')
+            ->with('success', 'Utilisateur mis à jour avec succès.');
     }
 
-    public function destroy(User $user)
-    {
+
+
+    public function destroy(User $user){
         $user->delete();
         return redirect()->route('users.index');
     }

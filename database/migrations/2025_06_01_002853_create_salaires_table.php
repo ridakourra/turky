@@ -11,17 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // First, let's recreate the salaires table with proper constraints
+        Schema::dropIfExists('salaires');
+
         Schema::create('salaires', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->enum('type_travail', [
-                'par_jour',       // باليوم
-                'par_heure',      // بالساعة
-                'par_unite'       // بالوحدة
-            ]);
-            $table->decimal('montant');
-            // $table->foreignId('product_id')->nullable()->constrained('');
-            $table->date('date_derniere_paiement')->nullable();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->enum('type_travail', ['par_jour', 'par_mois', 'par_produit']);
+            $table->decimal('montant', 10, 2);
+            $table->datetime('date_derniere_paiement')->nullable();
             $table->timestamps();
         });
     }
