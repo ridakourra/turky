@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 import {
   LayoutDashboard,
   Users,
@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-export default function AdminLayout({ children, title }) {
+export default function AdminLayout({ children, title , titleHead}) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navigation = [
@@ -21,6 +21,7 @@ export default function AdminLayout({ children, title }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
+        <Head title={title} />
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -81,7 +82,7 @@ export default function AdminLayout({ children, title }) {
               <Menu className="h-5 w-5" />
             </Button>
 
-            <h1 className="text-xl font-semibold text-[#262626]">{title}</h1>
+            <h1 className="text-xl font-semibold text-[#262626]">{titleHead}</h1>
 
             {/* Add user profile dropdown here if needed */}
           </div>
