@@ -10,7 +10,15 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
+
+
+    // Users
     Route::resource('users', UserController::class);
+
+    // Export/Import routes
+    Route::get('users/export/csv', [UserController::class, 'export'])->name('users.export');
+    Route::get('users/export/excel', [UserController::class, 'exportExcel'])->name('users.export.excel');
+    Route::post('users/import', [UserController::class, 'import'])->name('users.import');
 
 });
 

@@ -13,38 +13,86 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::query()
-            ->with(['salaire', 'historiqueDettes' => function($q) {
-                $q->where('status', 'non_payé');
-            }]);
+        $query = User::query();
 
-        // Search
-        if ($request->search) {
-            $query->where(function($q) use ($request) {
-                $q->where('nom', 'like', "%{$request->search}%")
-                  ->orWhere('prenom', 'like', "%{$request->search}%")
-                  ->orWhere('cin', 'like', "%{$request->search}%");
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nom', 'like', "%{$search}%")
+                  ->orWhere('prenom', 'like', "%{$search}%")
+                  ->orWhere('cin', 'like', "%{$search}%")
+                  ->orWhere('telephone', 'like', "%{$search}%");
             });
         }
 
         // Role filter
-        if ($request->role) {
+        if ($request->filled('role')) {
             $query->where('role', $request->role);
         }
 
         // Status filter
-        if ($request->has('est_actif')) {
-            $query->where('est_actif', $request->est_actif);
+        if ($request->filled('status')) {
+            $query->where('est_actif', $request->status === 'active');
         }
 
-        $users = $query->latest()->paginate(10);
+        // Date range filter
+        if ($request->filled('date_from')) {
+            $query->whereDate('date_debut', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('date_debut', '<=', $request->date_to);
+        }
+
+        // Debt filter
+        if ($request->filled('debt_status')) {
+            switch ($request->debt_status) {
+                case 'with_debt':
+                    $query->where('dettes', '>', 0);
+                    break;
+                case 'no_debt':
+                    $query->where('dettes', '=', 0);
+                    break;
+            }
+        }
+
+        // Sort by
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+
+        $allowedSortFields = ['nom', 'prenom', 'role', 'date_debut', 'dettes', 'created_at'];
+        if (in_array($sortBy, $allowedSortFields)) {
+            $query->orderBy($sortBy, $sortDirection);
+        }
+
+        // Load relationships for better performance
+        $query->withCount(['absences', 'historiqueDettes', 'historiqueSalaires']);
+
+        // Get per_page from request, default to 10, max 100
+        $perPage = $request->get('per_page', 10);
+        $perPage = min(max((int)$perPage, 5), 100);
+
+        // Get page from request, default to 1
+        $page = max((int)$request->get('page', 1), 1);
+
+        // Paginate
+        $users = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
 
         return Inertia::render('Users/Index', [
             'users' => $users,
-            'filters' => $request->only(['search', 'role', 'est_actif'])
+            'filters' => $request->only([
+                'search', 'role', 'status', 'date_from', 'date_to',
+                'debt_status', 'sort_by', 'sort_direction', 'per_page', 'page'
+            ]),
+            'roles' => [
+                'client' => 'Client',
+                'directeur' => 'Directeur',
+                'comptable' => 'Comptable',
+                'livreur' => 'Livreur'
+            ]
         ]);
     }
-
 
     public function create()
     {
@@ -112,66 +160,6 @@ class UserController extends Controller
             ->with('success', 'Utilisateur créé avec succès!');
     }
 
-    // public function store(Request $request)
-    // {
-    //     $validated = $request->validate([
-    //         'nom' => 'required|string|max:255',
-    //         'prenom' => 'required|string|max:255',
-    //         'telephone' => 'nullable|string|max:255',
-    //         'cin' => 'required|string|unique:users,cin',
-    //         'adresse' => 'nullable|string|max:500',
-    //         'role' => ['required', Rule::in(['client', 'directeur', 'comptable', 'livreur'])],
-    //         'date_debut' => 'nullable|date',
-    //         'est_actif' => 'boolean',
-
-    //         // Password fields (only for directeur and comptable)
-    //         'password' => 'nullable|string|min:6|confirmed',
-    //         'password_confirmation' => 'nullable|string|min:6',
-
-    //         // Salary fields (for directeur, comptable, livreur)
-    //         'type_travail' => ['nullable', Rule::in(['par_jour', 'par_heure', 'par_unite'])],
-    //         'montant_salaire' => 'nullable|numeric|min:0',
-    //     ]);
-
-    //     // Handle password based on role
-    //     if (in_array($validated['role'], ['directeur', 'comptable'])) {
-    //         if (empty($validated['password'])) {
-    //             return back()->withErrors(['password' => 'Le mot de passe est requis pour ce rôle.']);
-    //         }
-    //         $validated['password'] = Hash::make($validated['password']);
-    //     } else {
-    //         // Remove password for roles that don't need accounts
-    //         unset($validated['password']);
-    //     }
-
-    //     // Remove salary confirmation field
-    //     unset($validated['password_confirmation']);
-
-    //     // Create user
-    //     $user = User::create([
-    //         'nom' => $validated['nom'],
-    //         'prenom' => $validated['prenom'],
-    //         'telephone' => $validated['telephone'],
-    //         'cin' => $validated['cin'],
-    //         'adresse' => $validated['adresse'],
-    //         'role' => $validated['role'],
-    //         'date_debut' => $validated['date_debut'],
-    //         'est_actif' => $validated['est_actif'] ?? true,
-    //         'password' => $validated['password'] ?? null,
-    //     ]);
-
-    //     // Create salary record if applicable (not for clients)
-    //     if ($validated['role'] !== 'client' && !empty($validated['type_travail']) && !empty($validated['montant_salaire'])) {
-    //         Salaire::create([
-    //             'user_id' => $user->id,
-    //             'type_travail' => $validated['type_travail'],
-    //             'montant' => $validated['montant_salaire'],
-    //             'date_derniere_paiement' => null,
-    //         ]);
-    //     }
-
-    //     return redirect()->route('users.index')->with('success', 'Utilisateur créé avec succès.');
-    // }
 
     public function show(User $user)
     {
@@ -215,4 +203,5 @@ class UserController extends Controller
         $user->delete();
         return redirect()->route('users.index');
     }
+
 }
