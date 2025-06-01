@@ -94,8 +94,12 @@ class UserController extends Controller
         ]);
     }
 
+
+
+    
     public function create()
     {
+
         return Inertia::render('Users/Create');
     }
 
@@ -161,14 +165,169 @@ class UserController extends Controller
     }
 
 
+
+
+
     public function show(User $user)
     {
-        $user->load(['absences', 'salaire', 'historiqueDettes', 'historiqueSalaires']);
+        // Load all relationships with counts and latest records
+        $user->load([
+            'absences' => function ($query) {
+                $query->orderBy('created_at', 'desc');
+            },
+            'salaire',
+            'historiqueDettes' => function ($query) {
+                $query->orderBy('created_at', 'desc');
+            },
+            'historiqueSalaires' => function ($query) {
+                $query->orderBy('date', 'desc');
+            },
+            'historiqueTravails' => function ($query) {
+                $query->orderBy('created_at', 'desc');
+            }
+        ]);
+
+        // Load counts for statistics
+        $user->loadCount([
+            'absences',
+            'historiqueDettes',
+            'historiqueSalaires',
+            'historiqueTravails'
+        ]);
+
+        // Calculate statistics based on user role
+        $statistics = $this->calculateUserStatistics($user);
+
+        // Get recent activities
+        $recentActivities = $this->getRecentActivities($user);
 
         return Inertia::render('Users/Show', [
-            'user' => $user
+            'user' => $user,
+            'statistics' => $statistics,
+            'recentActivities' => $recentActivities,
+            'canEdit' => true, // You can add permission logic here
+            'canDelete' => true, // You can add permission logic here
         ]);
     }
+
+    private function calculateUserStatistics(User $user)
+    {
+        $statistics = [
+            'totalAbsences' => $user->absences_count,
+            'justifiedAbsences' => $user->absences()->where('justifie', true)->count(),
+            'unjustifiedAbsences' => $user->absences()->where('justifie', false)->count(),
+        ];
+
+        // Role-specific statistics
+        switch ($user->role) {
+            case 'client':
+                $statistics = array_merge($statistics, [
+                    'totalDettes' => $user->dettes ?? 0,
+                    'totalDetteHistory' => $user->historique_dettes_count,
+                    'paidDettes' => $user->historiqueDettes()->where('status', 'paid')->sum('montant'),
+                    'pendingDettes' => $user->historiqueDettes()->where('status', 'pending')->sum('montant'),
+                ]);
+                break;
+
+            case 'livreur':
+            case 'directeur':
+            case 'comptable':
+                $currentSalary = $user->salaire->first();
+                $totalSalaryPaid = $user->historiqueSalaires()->sum('montant');
+                $lastSalaryDate = $user->historiqueSalaires()->max('date');
+
+                $statistics = array_merge($statistics, [
+                    'currentSalary' => $currentSalary ? $currentSalary->montant : 0,
+                    'salaryType' => $currentSalary ? $currentSalary->type_travail : null,
+                    'totalSalaryPaid' => $totalSalaryPaid,
+                    'lastSalaryDate' => $lastSalaryDate,
+                    'totalSalaryPayments' => $user->historique_salaires_count,
+                ]);
+
+                // Additional stats for workers with production tracking
+                if (in_array($user->role, ['livreur'])) {
+                    $statistics = array_merge($statistics, [
+                        'totalWorkHistory' => $user->historique_travails_count,
+                        'totalQuantityProduced' => $user->historiqueTravails()->sum('quatite'),
+                        'averageDaily' => $user->historique_travails_count > 0
+                            ? round($user->historiqueTravails()->sum('quatite') / max($user->historique_travails_count, 1), 2)
+                            : 0,
+                    ]);
+                }
+                break;
+        }
+
+        return $statistics;
+    }
+
+    private function getRecentActivities(User $user)
+    {
+        $activities = collect();
+
+        // Recent absences
+        $user->absences()->take(3)->get()->each(function ($absence) use ($activities) {
+            $activities->push([
+                'type' => 'absence',
+                'title' => 'Absence enregistrée',
+                'description' => $absence->raison,
+                'date' => $absence->created_at,
+                'status' => $absence->justifie ? 'justified' : 'unjustified',
+                'icon' => 'user-x'
+            ]);
+        });
+
+        // Role-specific recent activities
+        switch ($user->role) {
+            case 'client':
+                // Recent debt history
+                $user->historiqueDettes()->take(3)->get()->each(function ($dette) use ($activities) {
+                    $activities->push([
+                        'type' => 'dette',
+                        'title' => 'Dette ' . ($dette->status === 'paid' ? 'payée' : 'ajoutée'),
+                        'description' => number_format($dette->montant, 2) . ' MAD',
+                        'date' => $dette->created_at,
+                        'status' => $dette->status,
+                        'icon' => $dette->status === 'paid' ? 'check-circle' : 'credit-card'
+                    ]);
+                });
+                break;
+
+            default:
+                // Recent salary payments
+                $user->historiqueSalaires()->take(3)->get()->each(function ($salaire) use ($activities) {
+                    $activities->push([
+                        'type' => 'salaire',
+                        'title' => 'Salaire payé',
+                        'description' => number_format($salaire->montant, 2) . ' MAD',
+                        'date' => $salaire->date,
+                        'status' => 'paid',
+                        'icon' => 'banknote'
+                    ]);
+                });
+
+                // Recent work history (for workers)
+                if (in_array($user->role, ['livreur'])) {
+                    $user->historiqueTravails()->take(3)->get()->each(function ($travail) use ($activities) {
+                        $activities->push([
+                            'type' => 'travail',
+                            'title' => 'Travail enregistré',
+                            'description' => $travail->quatite . ' unités produites',
+                            'date' => $travail->created_at,
+                            'status' => 'completed',
+                            'icon' => 'package'
+                        ]);
+                    });
+                }
+                break;
+        }
+
+        return $activities->sortByDesc('date')->take(10)->values();
+    }
+
+
+
+
+
 
     public function edit(User $user)
     {
