@@ -62,20 +62,19 @@ export default function Create() {
     return (
         <AdminLayout title="Créer un utilisateur" titleHead="Créer un nouvel utilisateur">
             <div className="max-w-4xl mx-auto">
-                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                {/* White card wrapper */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    {/* Header bar */}
                     <div className="bg-[#f9c401] px-6 py-4">
                         <h2 className="text-xl font-bold text-[#262626]">
                             Informations de l'utilisateur
                         </h2>
                     </div>
 
+                    {/* Form body */}
                     <form onSubmit={handleSubmit} className="p-6 space-y-8">
                         {/* Personal Information */}
-                        <PersonalInfoForm
-                            data={data}
-                            setData={setData}
-                            errors={errors}
-                        />
+                        <PersonalInfoForm data={data} setData={setData} errors={errors} />
 
                         {/* Role Selection */}
                         <RoleSelectionForm
@@ -86,27 +85,16 @@ export default function Create() {
 
                         {/* Account Information (for directeur and comptable) */}
                         {showPassword && (
-                            <AccountInfoForm
-                                data={data}
-                                setData={setData}
-                                errors={errors}
-                            />
+                            <AccountInfoForm data={data} setData={setData} errors={errors} />
                         )}
 
                         {/* Salary Information (for all except client) */}
                         {showSalary && (
-                            <SalaryInfoForm
-                                data={data}
-                                setData={setData}
-                                errors={errors}
-                            />
+                            <SalaryInfoForm data={data} setData={setData} errors={errors} />
                         )}
 
                         {/* Form Actions */}
-                        <FormActions
-                            processing={processing}
-                            onReset={() => reset()}
-                        />
+                        <FormActions processing={processing} onReset={() => reset()} />
                     </form>
                 </div>
             </div>

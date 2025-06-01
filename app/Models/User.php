@@ -73,4 +73,10 @@ class User extends Authenticatable
         return $this->hasMany(Absence::class);
     }
 
+
+     public function vehicules()
+    {
+        return $this->hasMany(Vehicule::class, 'chauffeur_id');
+    }
+
 }

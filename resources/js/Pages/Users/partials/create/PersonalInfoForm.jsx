@@ -3,7 +3,8 @@ import { User, Phone, MapPin, CreditCard, Calendar } from 'lucide-react';
 
 export default function PersonalInfoForm({ data, setData, errors }) {
     return (
-        <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
+            {/* Header */}
             <div className="border-b border-gray-200 pb-4">
                 <h3 className="text-lg font-semibold text-[#262626] flex items-center">
                     <User className="mr-2 h-5 w-5 text-[#f9c401]" />
@@ -14,6 +15,7 @@ export default function PersonalInfoForm({ data, setData, errors }) {
                 </p>
             </div>
 
+            {/* Form Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Nom */}
                 <div>

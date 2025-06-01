@@ -5,7 +5,8 @@ import {
   Users,
   Menu,
   X,
-  LogOut
+  LogOut,
+  Car
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,6 +17,7 @@ export default function AdminLayout({ children, title , titleHead}) {
   const navigation = [
     { name: 'Dashboard', href: route('dashboard'), icon: LayoutDashboard },
     { name: 'Users', href: route('users.index'), icon: Users },
+     { name: 'Vehicule', href: route('vehicules.index'), icon: Car },
     { name: 'Logout', href: route('logout'), icon: LogOut },
   ];
 
