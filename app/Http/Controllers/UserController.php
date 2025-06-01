@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Salaire;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -42,38 +45,133 @@ class UserController extends Controller
         ]);
     }
 
+
     public function create()
     {
         return Inertia::render('Users/Create');
     }
 
+
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // Validation rules
+        $rules = [
             'nom' => 'required|string|max:255',
             'prenom' => 'required|string|max:255',
-            'telephone' => 'nullable|string',
-            'cin' => 'required|string|unique:users',
-            'password' => 'required_if:role,directeur,comptable|string|min:6',
-            'adresse' => 'nullable|string',
+            'cin' => 'required|string|unique:users,cin|max:20',
+            'telephone' => 'nullable|string|max:20',
+            'adresse' => 'nullable|string|max:500',
             'role' => 'required|in:client,directeur,comptable,livreur',
-            'date_debut' => 'required|date',
-            'est_actif' => 'boolean',
-            'salaire_montant' => 'required_if:role,directeur,comptable,livreur|numeric|min:0',
-            'salaire_type' => 'required_if:role,directeur,comptable,livreur|in:mensuel,journalier,par_piece'
-        ]);
+            'date_debut' => 'nullable|date',
+            'est_actif' => 'boolean'
+        ];
 
-        $user = User::create($validated);
+        // Add password validation for roles that need accounts
+        if (in_array($request->role, ['directeur', 'comptable'])) {
+            $rules['password'] = ['required', 'string', Password::min(6), 'confirmed'];
+        }
 
-        if (in_array($validated['role'], ['directeur', 'comptable', 'livreur'])) {
-            $user->salaire()->create([
-                'montant' => $validated['salaire_montant'],
-                'type_travail' => $validated['salaire_type']
+        // Add salary validation for roles that need salary
+        if ($request->role !== 'client') {
+            $rules['type_travail'] = 'required|in:par_jour,par_mois,par_produit';
+            $rules['montant_salaire'] = 'required|numeric|min:0';
+        }
+
+        $validated = $request->validate($rules);
+
+        // Create user
+        $userData = [
+            'nom' => $validated['nom'],
+            'prenom' => $validated['prenom'],
+            'cin' => $validated['cin'],
+            'telephone' => $validated['telephone'] ?? null,
+            'adresse' => $validated['adresse'] ?? null,
+            'role' => $validated['role'],
+            'date_debut' => $validated['date_debut'] ?? now(),
+            'est_actif' => $validated['est_actif'] ?? true
+        ];
+
+        // Add password for roles that need accounts
+        if (in_array($validated['role'], ['directeur', 'comptable'])) {
+            $userData['password'] = Hash::make($validated['password']);
+        }
+
+        $user = User::create($userData);
+
+        // Create salary record for roles that need salary
+        if ($validated['role'] !== 'client') {
+            Salaire::create([
+                'user_id' => $user->id,
+                'type_travail' => $validated['type_travail'],
+                'montant' => $validated['montant_salaire'],
+                'date_derniere_paiement' => null
             ]);
         }
 
-        return redirect()->route('users.index');
+        return redirect()->route('users.index')
+            ->with('success', 'Utilisateur créé avec succès!');
     }
+
+    // public function store(Request $request)
+    // {
+    //     $validated = $request->validate([
+    //         'nom' => 'required|string|max:255',
+    //         'prenom' => 'required|string|max:255',
+    //         'telephone' => 'nullable|string|max:255',
+    //         'cin' => 'required|string|unique:users,cin',
+    //         'adresse' => 'nullable|string|max:500',
+    //         'role' => ['required', Rule::in(['client', 'directeur', 'comptable', 'livreur'])],
+    //         'date_debut' => 'nullable|date',
+    //         'est_actif' => 'boolean',
+
+    //         // Password fields (only for directeur and comptable)
+    //         'password' => 'nullable|string|min:6|confirmed',
+    //         'password_confirmation' => 'nullable|string|min:6',
+
+    //         // Salary fields (for directeur, comptable, livreur)
+    //         'type_travail' => ['nullable', Rule::in(['par_jour', 'par_heure', 'par_unite'])],
+    //         'montant_salaire' => 'nullable|numeric|min:0',
+    //     ]);
+
+    //     // Handle password based on role
+    //     if (in_array($validated['role'], ['directeur', 'comptable'])) {
+    //         if (empty($validated['password'])) {
+    //             return back()->withErrors(['password' => 'Le mot de passe est requis pour ce rôle.']);
+    //         }
+    //         $validated['password'] = Hash::make($validated['password']);
+    //     } else {
+    //         // Remove password for roles that don't need accounts
+    //         unset($validated['password']);
+    //     }
+
+    //     // Remove salary confirmation field
+    //     unset($validated['password_confirmation']);
+
+    //     // Create user
+    //     $user = User::create([
+    //         'nom' => $validated['nom'],
+    //         'prenom' => $validated['prenom'],
+    //         'telephone' => $validated['telephone'],
+    //         'cin' => $validated['cin'],
+    //         'adresse' => $validated['adresse'],
+    //         'role' => $validated['role'],
+    //         'date_debut' => $validated['date_debut'],
+    //         'est_actif' => $validated['est_actif'] ?? true,
+    //         'password' => $validated['password'] ?? null,
+    //     ]);
+
+    //     // Create salary record if applicable (not for clients)
+    //     if ($validated['role'] !== 'client' && !empty($validated['type_travail']) && !empty($validated['montant_salaire'])) {
+    //         Salaire::create([
+    //             'user_id' => $user->id,
+    //             'type_travail' => $validated['type_travail'],
+    //             'montant' => $validated['montant_salaire'],
+    //             'date_derniere_paiement' => null,
+    //         ]);
+    //     }
+
+    //     return redirect()->route('users.index')->with('success', 'Utilisateur créé avec succès.');
+    // }
 
     public function show(User $user)
     {
