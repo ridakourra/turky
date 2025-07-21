@@ -1,1332 +1,495 @@
-import React, { useState } from "react";
-import { Head, Link, router } from "@inertiajs/react";
-import AdminLayout from "@/Layouts/Layout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-    ArrowLeft,
-    Edit,
-    Truck,
-    AlertCircle,
-    Info,
-    Calendar,
-    Gauge,
-    Settings,
-    FileText,
-    Eye,
-    Filter,
-    ChevronDown,
-    ChevronUp,
-    User,
-    Package,
-    DollarSign,
-    TrendingUp,
-    MapPin,
-    Clock,
-    Wrench,
-    AlertTriangle,
-    CheckCircle,
-    XCircle,
-    Search,
-} from "lucide-react";
+import React, { useState } from 'react';
+import { Head, useForm, router } from '@inertiajs/react';
+import AdminLayout from '@/Layouts/AdminLayout';
+import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
+import { Textarea } from '@/Components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
+import { ArrowLeft, Edit, Plus, Fuel, Receipt, Calendar, DollarSign, Truck, User, Wrench } from 'lucide-react';
 
-const VehiculesShow = ({
-    vehicule,
-    commandes,
-    livraisons,
-    rapports,
-    stats,
-    filters,
-}) => {
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [filtersOpen, setFiltersOpen] = useState({
-        commandes: false,
-        livraisons: false,
-        rapports: false,
+export default function Show({ vehicule, commandesClients, depensesMachines, utilisationsCarburant, carburants, stats }) {
+    const [showDepenseDialog, setShowDepenseDialog] = useState(false);
+    const [showCarburantDialog, setShowCarburantDialog] = useState(false);
+
+    const { data: depenseData, setData: setDepenseData, post: postDepense, processing: processingDepense, errors: depenseErrors, reset: resetDepense } = useForm({
+        type_depense: '',
+        montant: '',
+        description: '',
+        date_depense: new Date().toISOString().split('T')[0]
     });
 
-    const [localFilters, setLocalFilters] = useState({
-        commandes_date_from: filters.commandes_date_from || "",
-        commandes_date_to: filters.commandes_date_to || "",
-        livraisons_status: filters.livraisons_status || "",
-        livraisons_date_from: filters.livraisons_date_from || "",
-        livraisons_date_to: filters.livraisons_date_to || "",
-        rapports_type: filters.rapports_type || "",
-        rapports_date_from: filters.rapports_date_from || "",
-        rapports_date_to: filters.rapports_date_to || "",
+    const { data: carburantData, setData: setCarburantData, post: postCarburant, processing: processingCarburant, errors: carburantErrors, reset: resetCarburant } = useForm({
+        carburant_id: '',
+        quantite: '',
+        prix_unitaire: '',
+        date_utilisation: new Date().toISOString().split('T')[0]
     });
 
-    const getStatusBadge = (statut) => {
-        const statusConfig = {
-            available: {
-                label: "Disponible",
-                className: "bg-green-100 text-green-800",
-            },
-            in_use: {
-                label: "En utilisation",
-                className: "bg-blue-100 text-blue-800",
-            },
-            maintenance: {
-                label: "Maintenance",
-                className: "bg-yellow-100 text-yellow-800",
-            },
-            out_of_service: {
-                label: "Hors service",
-                className: "bg-red-100 text-red-800",
-            },
-        };
-
-        const config = statusConfig[statut] || {
-            label: statut,
-            className: "bg-gray-100 text-gray-800",
-        };
-        return <Badge className={config.className}>{config.label}</Badge>;
-    };
-
-    const getLivraisonStatusBadge = (status) => {
-        const statusConfig = {
-            pending: {
-                label: "En attente",
-                className: "bg-yellow-100 text-yellow-800",
-                icon: Clock,
-            },
-            in_progress: {
-                label: "En cours",
-                className: "bg-blue-100 text-blue-800",
-                icon: Truck,
-            },
-            delivered: {
-                label: "Livrée",
-                className: "bg-green-100 text-green-800",
-                icon: CheckCircle,
-            },
-            cancelled: {
-                label: "Annulée",
-                className: "bg-red-100 text-red-800",
-                icon: XCircle,
-            },
-        };
-
-        const config = statusConfig[status] || {
-            label: status,
-            className: "bg-gray-100 text-gray-800",
-            icon: AlertCircle,
-        };
-        const Icon = config.icon;
-        return (
-            <Badge className={`${config.className} flex items-center gap-1`}>
-                <Icon className="h-3 w-3" />
-                {config.label}
-            </Badge>
-        );
-    };
-
-    // Check if insurance is expiring soon or expired
-    const isInsuranceExpiringSoon = () => {
-        if (!vehicule.date_assurance) return false;
-        const expiryDate = new Date(vehicule.date_assurance);
-        const today = new Date();
-        const thirtyDaysFromNow = new Date(
-            today.getTime() + 30 * 24 * 60 * 60 * 1000
-        );
-        return expiryDate <= thirtyDaysFromNow && expiryDate >= today;
-    };
-
-    const isInsuranceExpired = () => {
-        if (!vehicule.date_assurance) return false;
-        const expiryDate = new Date(vehicule.date_assurance);
-        const today = new Date();
-        return expiryDate < today;
-    };
-
-    const applyFilters = (newFilters) => {
-        const cleanFilters = Object.fromEntries(
-            Object.entries(newFilters).filter(([_, value]) => value !== "")
-        );
-
-        router.get(route("vehicules.show", vehicule.id), cleanFilters, {
-            preserveState: true,
-            replace: true,
-        });
-    };
-
-    const handleDelete = () => {
-        router.delete(route("vehicules.destroy", vehicule.id), {
+    const handleDepenseSubmit = (e) => {
+        e.preventDefault();
+        postDepense(route('vehicules.depenses.store', vehicule.id), {
             onSuccess: () => {
-                router.visit(route("vehicules.index"));
-            },
+                setShowDepenseDialog(false);
+                resetDepense();
+            }
         });
+    };
+
+    const handleCarburantSubmit = (e) => {
+        e.preventDefault();
+        postCarburant(route('vehicules.refill-carburant', vehicule.id), {
+            onSuccess: () => {
+                setShowCarburantDialog(false);
+                resetCarburant();
+            }
+        });
+    };
+
+    const getStatutBadgeColor = (statut) => {
+        const colors = {
+            actif: 'bg-green-500',
+            en_maintenance: 'bg-yellow-500',
+            hors_service: 'bg-red-500'
+        };
+        return colors[statut] || 'bg-gray-500';
+    };
+
+    const getTypeBadgeColor = (type) => {
+        const colors = {
+            camion: 'bg-blue-500',
+            voiture: 'bg-purple-500',
+            autre: 'bg-gray-500'
+        };
+        return colors[type] || 'bg-gray-500';
     };
 
     return (
-        <AdminLayout title={`${vehicule.nom} - Détails`}>
-            <Head title={`${vehicule.nom} - Détails`} />
-
+        <AdminLayout>
+            <Head title={`Véhicule ${vehicule.matricule}`} />
+            
             <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center gap-4">
-                    <Link href={route("vehicules.index")}>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex items-center gap-2"
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                        <Truck className="w-8 h-8 text-yellow-500" />
+                        <h1 className="text-3xl font-bold text-gray-900">
+                            Véhicule {vehicule.matricule}
+                        </h1>
+                    </div>
+                    <div className="flex space-x-2">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => router.get(route('vehicules.edit', vehicule.id))}
                         >
-                            <ArrowLeft className="h-4 w-4" />
+                            <Edit className="w-4 h-4 mr-2" />
+                            Modifier
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            onClick={() => router.get(route('vehicules.index'))}
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-2" />
                             Retour à la liste
                         </Button>
-                    </Link>
-                    <div className="flex-1">
-                        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            <Truck className="h-6 w-6 text-yellow-600" />
-                            {vehicule.nom}
-                        </h1>
-                        <p className="text-gray-600 mt-1 flex items-center gap-2">
-                            Matricule: {vehicule.matricule}
-                            {getStatusBadge(vehicule.statut)}
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Link href={route("vehicules.edit", vehicule.id)}>
-                            <Button
-                                size="sm"
-                                className="bg-yellow-600 hover:bg-yellow-700 flex items-center gap-2"
-                            >
-                                <Edit className="h-4 w-4" />
-                                Modifier
-                            </Button>
-                        </Link>
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => setDeleteDialogOpen(true)}
-                            className="flex items-center gap-2"
-                        >
-                            <AlertTriangle className="h-4 w-4" />
-                            Supprimer
-                        </Button>
                     </div>
                 </div>
 
-                {/* Alerts */}
-                <div className="space-y-2">
-                    {isInsuranceExpired() && (
-                        <Alert variant="destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>
-                                ⚠️ L'assurance de ce véhicule a expiré le{" "}
-                                {new Date(
-                                    vehicule.date_assurance
-                                ).toLocaleDateString("fr-FR")}
-                                . Veuillez la renouveler immédiatement.
-                            </AlertDescription>
-                        </Alert>
-                    )}
-
-                    {isInsuranceExpiringSoon() && !isInsuranceExpired() && (
-                        <Alert>
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>
-                                🔔 L'assurance de ce véhicule expire bientôt le{" "}
-                                {new Date(
-                                    vehicule.date_assurance
-                                ).toLocaleDateString("fr-FR")}
-                                . Pensez à la renouveler.
-                            </AlertDescription>
-                        </Alert>
-                    )}
-                </div>
-
-                {/* Statistics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">
-                                        Commandes Fournisseurs
-                                    </p>
-                                    <p className="text-2xl font-bold text-gray-900">
-                                        {stats.total_commandes}
-                                    </p>
-                                </div>
-                                <Package className="h-8 w-8 text-blue-600" />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">
-                                        Livraisons
-                                    </p>
-                                    <p className="text-2xl font-bold text-gray-900">
-                                        {stats.total_livraisons}
-                                    </p>
-                                </div>
-                                <Truck className="h-8 w-8 text-green-600" />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">
-                                        Dépenses Totales
-                                    </p>
-                                    <p className="text-2xl font-bold text-gray-900">
-                                        {stats.total_depenses?.toLocaleString() ||
-                                            "0"}{" "}
-                                        DH
-                                    </p>
-                                </div>
-                                <DollarSign className="h-8 w-8 text-red-600" />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">
-                                        Livraisons en Cours
-                                    </p>
-                                    <p className="text-2xl font-bold text-gray-900">
-                                        {stats.livraisons_en_cours}
-                                    </p>
-                                </div>
-                                <Clock className="h-8 w-8 text-yellow-600" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Vehicle Details */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* General Information */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <FileText className="h-5 w-5" />
-                                Informations Générales
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Nom
-                                    </Label>
-                                    <p className="text-sm text-gray-900">
-                                        {vehicule.nom}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Matricule
-                                    </Label>
-                                    <p className="text-sm text-gray-900 font-mono">
-                                        {vehicule.matricule}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Marque
-                                    </Label>
-                                    <p className="text-sm text-gray-900">
-                                        {vehicule.marque || "-"}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Modèle
-                                    </Label>
-                                    <p className="text-sm text-gray-900">
-                                        {vehicule.modele || "-"}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Type
-                                    </Label>
-                                    <p className="text-sm text-gray-900">
-                                        {vehicule.type || "-"}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Capacité
-                                    </Label>
-                                    <p className="text-sm text-gray-900">
-                                        {vehicule.capacite || "-"}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Statut
-                                    </Label>
-                                    <div className="pt-1">
-                                        {getStatusBadge(vehicule.statut)}
+                {/* Informations du véhicule */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Informations générales</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-500">Matricule</Label>
+                                        <p className="text-lg font-semibold">{vehicule.matricule}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-500">Type</Label>
+                                        <div className="mt-1">
+                                            <Badge className={`${getTypeBadgeColor(vehicule.type_vehicule)} text-white`}>
+                                                {vehicule.type_vehicule}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-500">Marque</Label>
+                                        <p className="text-lg">{vehicule.marque}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-500">Modèle</Label>
+                                        <p className="text-lg">{vehicule.modele || 'Non spécifié'}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-500">Année</Label>
+                                        <p className="text-lg">{vehicule.annee || 'Non spécifiée'}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-500">Capacité</Label>
+                                        <p className="text-lg">{vehicule.capacite ? `${vehicule.capacite} T` : 'Non spécifiée'}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-500">Statut</Label>
+                                        <div className="mt-1">
+                                            <Badge className={`${getStatutBadgeColor(vehicule.statut)} text-white`}>
+                                                {vehicule.statut?.replace('_', ' ')}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-500">Chauffeur</Label>
+                                        <div className="flex items-center mt-1">
+                                            {vehicule.chauffeur ? (
+                                                <div className="flex items-center space-x-2">
+                                                    <User className="w-4 h-4 text-gray-500" />
+                                                    <div>
+                                                        <p className="font-medium">{vehicule.chauffeur.nom_complet}</p>
+                                                        <p className="text-sm text-gray-500">{vehicule.chauffeur.telephone}</p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-500">Non assigné</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Employé Assigné
-                                    </Label>
-                                    <p className="text-sm text-gray-900">
-                                        {vehicule.employer ? (
-                                            <Link
-                                                href={route(
-                                                    "employers.show",
-                                                    vehicule.employer.id
-                                                )}
-                                                className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                                            >
-                                                <User className="h-3 w-3" />
-                                                {vehicule.employer.nom}
-                                            </Link>
-                                        ) : (
-                                            <span className="text-gray-400">
-                                                Non assigné
-                                            </span>
-                                        )}
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                                {vehicule.description && (
+                                    <div className="mt-4">
+                                        <Label className="text-sm font-medium text-gray-500">Description</Label>
+                                        <p className="mt-1 text-gray-700">{vehicule.description}</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
 
-                    {/* Technical Details */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Settings className="h-5 w-5" />
-                                Caractéristiques Techniques
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Année
-                                    </Label>
-                                    <p className="text-sm text-gray-900">
-                                        {vehicule.annee || "-"}
-                                    </p>
+                    {/* Statistiques */}
+                    <div>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Statistiques</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                                    <div className="flex items-center space-x-2">
+                                        <Receipt className="w-5 h-5 text-blue-500" />
+                                        <span className="text-sm font-medium">Commandes</span>
+                                    </div>
+                                    <span className="text-lg font-bold text-blue-600">{stats?.total_commandes || 0}</span>
                                 </div>
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Kilométrage
-                                    </Label>
-                                    <p className="text-sm text-gray-900 flex items-center gap-1">
-                                        <Gauge className="h-3 w-3" />
-                                        {vehicule.kilometrage
-                                            ? `${vehicule.kilometrage.toLocaleString()} km`
-                                            : "-"}
-                                    </p>
+                                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                                    <div className="flex items-center space-x-2">
+                                        <DollarSign className="w-5 h-5 text-red-500" />
+                                        <span className="text-sm font-medium">Dépenses totales</span>
+                                    </div>
+                                    <span className="text-lg font-bold text-red-600">{stats?.total_depenses || 0} DT</span>
                                 </div>
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Type de carburant
-                                    </Label>
-                                    <p className="text-sm text-gray-900">
-                                        {vehicule.carburant_type || "-"}
-                                    </p>
+                                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                                    <div className="flex items-center space-x-2">
+                                        <Fuel className="w-5 h-5 text-green-500" />
+                                        <span className="text-sm font-medium">Carburant utilisé</span>
+                                    </div>
+                                    <span className="text-lg font-bold text-green-600">{stats?.total_carburant || 0} L</span>
                                 </div>
-                                <div>
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Numéro de châssis
-                                    </Label>
-                                    <p className="text-sm text-gray-900 font-mono">
-                                        {vehicule.numero_chassis || "-"}
-                                    </p>
-                                </div>
-                                <div className="col-span-2">
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Numéro de moteur
-                                    </Label>
-                                    <p className="text-sm text-gray-900 font-mono">
-                                        {vehicule.numero_moteur || "-"}
-                                    </p>
-                                </div>
-                                <div className="col-span-2">
-                                    <Label className="text-sm font-medium text-gray-600">
-                                        Date d'expiration assurance
-                                    </Label>
-                                    <p
-                                        className={`text-sm flex items-center gap-1 ${
-                                            isInsuranceExpired()
-                                                ? "text-red-600"
-                                                : isInsuranceExpiringSoon()
-                                                ? "text-amber-600"
-                                                : "text-gray-900"
-                                        }`}
-                                    >
-                                        <Calendar className="h-3 w-3" />
-                                        {vehicule.date_assurance ? (
-                                            <>
-                                                {new Date(
-                                                    vehicule.date_assurance
-                                                ).toLocaleDateString("fr-FR")}
-                                                {isInsuranceExpired() && (
-                                                    <Badge
-                                                        variant="destructive"
-                                                        className="ml-2"
-                                                    >
-                                                        Expirée
-                                                    </Badge>
-                                                )}
-                                                {isInsuranceExpiringSoon() &&
-                                                    !isInsuranceExpired() && (
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="ml-2 border-amber-300 text-amber-700"
-                                                        >
-                                                            Expire bientôt
-                                                        </Badge>
-                                                    )}
-                                            </>
-                                        ) : (
-                                            "-"
-                                        )}
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
 
-                {/* Related Data Tabs */}
+                {/* Actions rapides */}
+                <div className="flex space-x-4">
+                    <Dialog open={showDepenseDialog} onOpenChange={setShowDepenseDialog}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-red-500 hover:bg-red-600">
+                                <Receipt className="w-4 h-4 mr-2" />
+                                Ajouter une dépense
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Nouvelle dépense</DialogTitle>
+                            </DialogHeader>
+                            <form onSubmit={handleDepenseSubmit} className="space-y-4">
+                                <div>
+                                    <Label htmlFor="type_depense">Type de dépense *</Label>
+                                    <Select value={depenseData.type_depense} onValueChange={(value) => setDepenseData('type_depense', value)}>
+                                        <SelectTrigger className={depenseErrors.type_depense ? 'border-red-500' : ''}>
+                                            <SelectValue placeholder="Sélectionner le type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="maintenance">Maintenance</SelectItem>
+                                            <SelectItem value="reparation">Réparation</SelectItem>
+                                            <SelectItem value="pieces">Pièces de rechange</SelectItem>
+                                            <SelectItem value="assurance">Assurance</SelectItem>
+                                            <SelectItem value="autre">Autre</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {depenseErrors.type_depense && (
+                                        <p className="text-red-500 text-sm mt-1">{depenseErrors.type_depense}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="montant">Montant (DT) *</Label>
+                                    <Input
+                                        id="montant"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={depenseData.montant}
+                                        onChange={(e) => setDepenseData('montant', e.target.value)}
+                                        className={depenseErrors.montant ? 'border-red-500' : ''}
+                                    />
+                                    {depenseErrors.montant && (
+                                        <p className="text-red-500 text-sm mt-1">{depenseErrors.montant}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="date_depense">Date *</Label>
+                                    <Input
+                                        id="date_depense"
+                                        type="date"
+                                        value={depenseData.date_depense}
+                                        onChange={(e) => setDepenseData('date_depense', e.target.value)}
+                                        className={depenseErrors.date_depense ? 'border-red-500' : ''}
+                                    />
+                                    {depenseErrors.date_depense && (
+                                        <p className="text-red-500 text-sm mt-1">{depenseErrors.date_depense}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="description">Description</Label>
+                                    <Textarea
+                                        id="description"
+                                        value={depenseData.description}
+                                        onChange={(e) => setDepenseData('description', e.target.value)}
+                                        placeholder="Description de la dépense"
+                                        rows={3}
+                                    />
+                                </div>
+
+                                <div className="flex justify-end space-x-2">
+                                    <Button type="button" variant="outline" onClick={() => setShowDepenseDialog(false)}>
+                                        Annuler
+                                    </Button>
+                                    <Button type="submit" disabled={processingDepense} className="bg-red-500 hover:bg-red-600">
+                                        {processingDepense ? 'Enregistrement...' : 'Enregistrer'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={showCarburantDialog} onOpenChange={setShowCarburantDialog}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-green-500 hover:bg-green-600">
+                                <Fuel className="w-4 h-4 mr-2" />
+                                Faire le plein
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Faire le plein</DialogTitle>
+                            </DialogHeader>
+                            <form onSubmit={handleCarburantSubmit} className="space-y-4">
+                                <div>
+                                    <Label htmlFor="carburant_id">Type de carburant *</Label>
+                                    <Select value={carburantData.carburant_id} onValueChange={(value) => setCarburantData('carburant_id', value)}>
+                                        <SelectTrigger className={carburantErrors.carburant_id ? 'border-red-500' : ''}>
+                                            <SelectValue placeholder="Sélectionner le carburant" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {carburants?.map((carburant) => (
+                                                <SelectItem key={carburant.id} value={carburant.id.toString()}>
+                                                    {carburant.type_carburant} (Stock: {carburant.quantite_stock} L)
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {carburantErrors.carburant_id && (
+                                        <p className="text-red-500 text-sm mt-1">{carburantErrors.carburant_id}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="quantite">Quantité (L) *</Label>
+                                    <Input
+                                        id="quantite"
+                                        type="number"
+                                        step="0.1"
+                                        min="0"
+                                        value={carburantData.quantite}
+                                        onChange={(e) => setCarburantData('quantite', e.target.value)}
+                                        className={carburantErrors.quantite ? 'border-red-500' : ''}
+                                    />
+                                    {carburantErrors.quantite && (
+                                        <p className="text-red-500 text-sm mt-1">{carburantErrors.quantite}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="prix_unitaire">Prix unitaire (DT/L) *</Label>
+                                    <Input
+                                        id="prix_unitaire"
+                                        type="number"
+                                        step="0.001"
+                                        min="0"
+                                        value={carburantData.prix_unitaire}
+                                        onChange={(e) => setCarburantData('prix_unitaire', e.target.value)}
+                                        className={carburantErrors.prix_unitaire ? 'border-red-500' : ''}
+                                    />
+                                    {carburantErrors.prix_unitaire && (
+                                        <p className="text-red-500 text-sm mt-1">{carburantErrors.prix_unitaire}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="date_utilisation">Date *</Label>
+                                    <Input
+                                        id="date_utilisation"
+                                        type="date"
+                                        value={carburantData.date_utilisation}
+                                        onChange={(e) => setCarburantData('date_utilisation', e.target.value)}
+                                        className={carburantErrors.date_utilisation ? 'border-red-500' : ''}
+                                    />
+                                    {carburantErrors.date_utilisation && (
+                                        <p className="text-red-500 text-sm mt-1">{carburantErrors.date_utilisation}</p>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-end space-x-2">
+                                    <Button type="button" variant="outline" onClick={() => setShowCarburantDialog(false)}>
+                                        Annuler
+                                    </Button>
+                                    <Button type="submit" disabled={processingCarburant} className="bg-green-500 hover:bg-green-600">
+                                        {processingCarburant ? 'Enregistrement...' : 'Enregistrer'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+
+                {/* Commandes clients */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Données Associées</CardTitle>
-                        <CardDescription>
-                            Historique des commandes, livraisons et dépenses
-                            liées à ce véhicule
-                        </CardDescription>
+                        <CardTitle>Commandes clients récentes</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <Tabs defaultValue="commandes" className="w-full">
-                            <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger
-                                    value="commandes"
-                                    className="flex items-center gap-2"
-                                >
-                                    <Package className="h-4 w-4" />
-                                    Commandes Fournisseurs ({commandes.total})
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="livraisons"
-                                    className="flex items-center gap-2"
-                                >
-                                    <Truck className="h-4 w-4" />
-                                    Livraisons ({livraisons.total})
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="rapports"
-                                    className="flex items-center gap-2"
-                                >
-                                    <Wrench className="h-4 w-4" />
-                                    Dépenses ({rapports.total})
-                                </TabsTrigger>
-                            </TabsList>
+                        {commandesClients?.length > 0 ? (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Numéro</TableHead>
+                                        <TableHead>Client</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Statut</TableHead>
+                                        <TableHead>Montant</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {commandesClients.map((commande) => (
+                                        <TableRow key={commande.id}>
+                                            <TableCell className="font-medium">{commande.numero_commande}</TableCell>
+                                            <TableCell>{commande.client?.nom}</TableCell>
+                                            <TableCell>{new Date(commande.date_commande).toLocaleDateString('fr-FR')}</TableCell>
+                                            <TableCell>
+                                                <Badge className={commande.statut === 'livree' ? 'bg-green-500' : 'bg-yellow-500'}>
+                                                    {commande.statut}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>{commande.montant_total} DT</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                            <p className="text-gray-500 text-center py-4">Aucune commande trouvée</p>
+                        )}
+                    </CardContent>
+                </Card>
 
-                            {/* Commandes Fournisseurs Tab */}
-                            <TabsContent
-                                value="commandes"
-                                className="space-y-4"
-                            >
-                                {/* Filters for Commandes */}
-                                <Collapsible
-                                    open={filtersOpen.commandes}
-                                    onOpenChange={(open) =>
-                                        setFiltersOpen((prev) => ({
-                                            ...prev,
-                                            commandes: open,
-                                        }))
-                                    }
-                                >
-                                    <CollapsibleTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="flex items-center gap-2"
-                                        >
-                                            <Filter className="h-4 w-4" />
-                                            Filtres
-                                            {filtersOpen.commandes ? (
-                                                <ChevronUp className="h-4 w-4" />
-                                            ) : (
-                                                <ChevronDown className="h-4 w-4" />
-                                            )}
-                                        </Button>
-                                    </CollapsibleTrigger>
-                                    <CollapsibleContent className="space-y-2 pt-2">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                            <div>
-                                                <Label>Date de</Label>
-                                                <Input
-                                                    type="date"
-                                                    value={
-                                                        localFilters.commandes_date_from
-                                                    }
-                                                    onChange={(e) =>
-                                                        setLocalFilters(
-                                                            (prev) => ({
-                                                                ...prev,
-                                                                commandes_date_from:
-                                                                    e.target
-                                                                        .value,
-                                                            })
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label>Date à</Label>
-                                                <Input
-                                                    type="date"
-                                                    value={
-                                                        localFilters.commandes_date_to
-                                                    }
-                                                    onChange={(e) =>
-                                                        setLocalFilters(
-                                                            (prev) => ({
-                                                                ...prev,
-                                                                commandes_date_to:
-                                                                    e.target
-                                                                        .value,
-                                                            })
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                        </div>
-                                        <Button
-                                            size="sm"
-                                            onClick={() =>
-                                                applyFilters(localFilters)
-                                            }
-                                            className="bg-yellow-600 hover:bg-yellow-700"
-                                        >
-                                            Appliquer
-                                        </Button>
-                                    </CollapsibleContent>
-                                </Collapsible>
+                {/* Dépenses */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Dépenses récentes</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {depensesMachines?.length > 0 ? (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Description</TableHead>
+                                        <TableHead>Montant</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {depensesMachines.map((depense) => (
+                                        <TableRow key={depense.id}>
+                                            <TableCell>{new Date(depense.date_depense).toLocaleDateString('fr-FR')}</TableCell>
+                                            <TableCell>
+                                                <Badge className="bg-red-500 text-white">
+                                                    {depense.type_depense}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>{depense.description || '-'}</TableCell>
+                                            <TableCell className="font-medium">{depense.montant} DT</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                            <p className="text-gray-500 text-center py-4">Aucune dépense trouvée</p>
+                        )}
+                    </CardContent>
+                </Card>
 
-                                {commandes.data.length > 0 ? (
-                                    <>
-                                        <div className="rounded-md border">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>
-                                                            Date
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Fournisseur
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Employé
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Actions
-                                                        </TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {commandes.data.map(
-                                                        (commande) => (
-                                                            <TableRow
-                                                                key={
-                                                                    commande.id
-                                                                }
-                                                            >
-                                                                <TableCell>
-                                                                    {commande.date
-                                                                        ? new Date(
-                                                                              commande.date
-                                                                          ).toLocaleDateString(
-                                                                              "fr-FR"
-                                                                          )
-                                                                        : "-"}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    {commande.fournisseur ? (
-                                                                        <Link
-                                                                            href={route(
-                                                                                "fournisseurs.show",
-                                                                                commande
-                                                                                    .fournisseur
-                                                                                    .id
-                                                                            )}
-                                                                            className="text-blue-600 hover:text-blue-800"
-                                                                        >
-                                                                            {
-                                                                                commande
-                                                                                    .fournisseur
-                                                                                    .nom
-                                                                            }
-                                                                        </Link>
-                                                                    ) : (
-                                                                        "-"
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    {commande.employer ? (
-                                                                        <Link
-                                                                            href={route(
-                                                                                "employers.show",
-                                                                                commande
-                                                                                    .employer
-                                                                                    .id
-                                                                            )}
-                                                                            className="text-blue-600 hover:text-blue-800"
-                                                                        >
-                                                                            {
-                                                                                commande
-                                                                                    .employer
-                                                                                    .nom
-                                                                            }
-                                                                        </Link>
-                                                                    ) : (
-                                                                        "-"
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <Link
-                                                                        href={route(
-                                                                            "commandes-fournisseurs.show",
-                                                                            commande.id
-                                                                        )}
-                                                                    >
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                        >
-                                                                            <Eye className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </Link>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        )
-                                                    )}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-
-                                        {commandes.last_page > 1 && (
-                                            <div className="flex justify-center">
-                                                <div className="flex gap-2">
-                                                    {commandes.links.map(
-                                                        (link, index) => (
-                                                            <Button
-                                                                key={index}
-                                                                variant={
-                                                                    link.active
-                                                                        ? "default"
-                                                                        : "outline"
-                                                                }
-                                                                size="sm"
-                                                                onClick={() => {
-                                                                    if (
-                                                                        link.url
-                                                                    ) {
-                                                                        router.get(
-                                                                            link.url
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                disabled={
-                                                                    !link.url
-                                                                }
-                                                                dangerouslySetInnerHTML={{
-                                                                    __html: link.label,
-                                                                }}
-                                                            />
-                                                        )
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                        <p className="text-gray-600">
-                                            Aucune commande fournisseur trouvée
-                                        </p>
-                                    </div>
-                                )}
-                            </TabsContent>
-
-                            {/* Livraisons Tab */}
-                            <TabsContent
-                                value="livraisons"
-                                className="space-y-4"
-                            >
-                                {/* Filters for Livraisons */}
-                                <Collapsible
-                                    open={filtersOpen.livraisons}
-                                    onOpenChange={(open) =>
-                                        setFiltersOpen((prev) => ({
-                                            ...prev,
-                                            livraisons: open,
-                                        }))
-                                    }
-                                >
-                                    <CollapsibleTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="flex items-center gap-2"
-                                        >
-                                            <Filter className="h-4 w-4" />
-                                            Filtres
-                                            {filtersOpen.livraisons ? (
-                                                <ChevronUp className="h-4 w-4" />
-                                            ) : (
-                                                <ChevronDown className="h-4 w-4" />
-                                            )}
-                                        </Button>
-                                    </CollapsibleTrigger>
-                                    <CollapsibleContent className="space-y-2 pt-2">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                            <div>
-                                                <Label>Statut</Label>
-                                                <Select
-                                                    value={
-                                                        localFilters.livraisons_status
-                                                    }
-                                                    onValueChange={(value) =>
-                                                        setLocalFilters(
-                                                            (prev) => ({
-                                                                ...prev,
-                                                                livraisons_status:
-                                                                    value,
-                                                            })
-                                                        )
-                                                    }
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Tous les statuts" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="">
-                                                            Tous les statuts
-                                                        </SelectItem>
-                                                        <SelectItem value="pending">
-                                                            En attente
-                                                        </SelectItem>
-                                                        <SelectItem value="in_progress">
-                                                            En cours
-                                                        </SelectItem>
-                                                        <SelectItem value="delivered">
-                                                            Livrée
-                                                        </SelectItem>
-                                                        <SelectItem value="cancelled">
-                                                            Annulée
-                                                        </SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div>
-                                                <Label>Date de</Label>
-                                                <Input
-                                                    type="date"
-                                                    value={
-                                                        localFilters.livraisons_date_from
-                                                    }
-                                                    onChange={(e) =>
-                                                        setLocalFilters(
-                                                            (prev) => ({
-                                                                ...prev,
-                                                                livraisons_date_from:
-                                                                    e.target
-                                                                        .value,
-                                                            })
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label>Date à</Label>
-                                                <Input
-                                                    type="date"
-                                                    value={
-                                                        localFilters.livraisons_date_to
-                                                    }
-                                                    onChange={(e) =>
-                                                        setLocalFilters(
-                                                            (prev) => ({
-                                                                ...prev,
-                                                                livraisons_date_to:
-                                                                    e.target
-                                                                        .value,
-                                                            })
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                        </div>
-                                        <Button
-                                            size="sm"
-                                            onClick={() =>
-                                                applyFilters(localFilters)
-                                            }
-                                            className="bg-yellow-600 hover:bg-yellow-700"
-                                        >
-                                            Appliquer
-                                        </Button>
-                                    </CollapsibleContent>
-                                </Collapsible>
-
-                                {livraisons.data.length > 0 ? (
-                                    <>
-                                        <div className="rounded-md border">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>
-                                                            Date
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Client
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Adresse
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Statut
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Employé
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Actions
-                                                        </TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {livraisons.data.map(
-                                                        (livraison) => (
-                                                            <TableRow
-                                                                key={
-                                                                    livraison.id
-                                                                }
-                                                            >
-                                                                <TableCell>
-                                                                    {livraison.date
-                                                                        ? new Date(
-                                                                              livraison.date
-                                                                          ).toLocaleDateString(
-                                                                              "fr-FR"
-                                                                          )
-                                                                        : "-"}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    {livraison
-                                                                        .commande
-                                                                        ?.client ? (
-                                                                        <Link
-                                                                            href={route(
-                                                                                "clients.show",
-                                                                                livraison
-                                                                                    .commande
-                                                                                    .client
-                                                                                    .id
-                                                                            )}
-                                                                            className="text-blue-600 hover:text-blue-800"
-                                                                        >
-                                                                            {
-                                                                                livraison
-                                                                                    .commande
-                                                                                    .client
-                                                                                    .nom
-                                                                            }
-                                                                        </Link>
-                                                                    ) : (
-                                                                        "-"
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <div className="flex items-center gap-1">
-                                                                        <MapPin className="h-3 w-3 text-gray-400" />
-                                                                        {livraison.adresse ||
-                                                                            "-"}
-                                                                    </div>
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    {getLivraisonStatusBadge(
-                                                                        livraison.status
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    {livraison.employer ? (
-                                                                        <Link
-                                                                            href={route(
-                                                                                "employers.show",
-                                                                                livraison
-                                                                                    .employer
-                                                                                    .id
-                                                                            )}
-                                                                            className="text-blue-600 hover:text-blue-800"
-                                                                        >
-                                                                            {
-                                                                                livraison
-                                                                                    .employer
-                                                                                    .nom
-                                                                            }
-                                                                        </Link>
-                                                                    ) : (
-                                                                        "-"
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <Link
-                                                                        href={route(
-                                                                            "livraisons.show",
-                                                                            livraison.id
-                                                                        )}
-                                                                    >
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                        >
-                                                                            <Eye className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </Link>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        )
-                                                    )}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-
-                                        {livraisons.last_page > 1 && (
-                                            <div className="flex justify-center">
-                                                <div className="flex gap-2">
-                                                    {livraisons.links.map(
-                                                        (link, index) => (
-                                                            <Button
-                                                                key={index}
-                                                                variant={
-                                                                    link.active
-                                                                        ? "default"
-                                                                        : "outline"
-                                                                }
-                                                                size="sm"
-                                                                onClick={() => {
-                                                                    if (
-                                                                        link.url
-                                                                    ) {
-                                                                        router.get(
-                                                                            link.url
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                disabled={
-                                                                    !link.url
-                                                                }
-                                                                dangerouslySetInnerHTML={{
-                                                                    __html: link.label,
-                                                                }}
-                                                            />
-                                                        )
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                        <p className="text-gray-600">
-                                            Aucune livraison trouvée
-                                        </p>
-                                    </div>
-                                )}
-                            </TabsContent>
-
-                            {/* Rapports Dépenses Tab */}
-                            <TabsContent value="rapports" className="space-y-4">
-                                {/* Filters for Rapports */}
-                                <Collapsible
-                                    open={filtersOpen.rapports}
-                                    onOpenChange={(open) =>
-                                        setFiltersOpen((prev) => ({
-                                            ...prev,
-                                            rapports: open,
-                                        }))
-                                    }
-                                >
-                                    <CollapsibleTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="flex items-center gap-2"
-                                        >
-                                            <Filter className="h-4 w-4" />
-                                            Filtres
-                                            {filtersOpen.rapports ? (
-                                                <ChevronUp className="h-4 w-4" />
-                                            ) : (
-                                                <ChevronDown className="h-4 w-4" />
-                                            )}
-                                        </Button>
-                                    </CollapsibleTrigger>
-                                    <CollapsibleContent className="space-y-2 pt-2">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                            <div>
-                                                <Label>Type de dépense</Label>
-                                                <Input
-                                                    placeholder="Ex: Carburant, Maintenance..."
-                                                    value={
-                                                        localFilters.rapports_type
-                                                    }
-                                                    onChange={(e) =>
-                                                        setLocalFilters(
-                                                            (prev) => ({
-                                                                ...prev,
-                                                                rapports_type:
-                                                                    e.target
-                                                                        .value,
-                                                            })
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label>Date de</Label>
-                                                <Input
-                                                    type="date"
-                                                    value={
-                                                        localFilters.rapports_date_from
-                                                    }
-                                                    onChange={(e) =>
-                                                        setLocalFilters(
-                                                            (prev) => ({
-                                                                ...prev,
-                                                                rapports_date_from:
-                                                                    e.target
-                                                                        .value,
-                                                            })
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label>Date à</Label>
-                                                <Input
-                                                    type="date"
-                                                    value={
-                                                        localFilters.rapports_date_to
-                                                    }
-                                                    onChange={(e) =>
-                                                        setLocalFilters(
-                                                            (prev) => ({
-                                                                ...prev,
-                                                                rapports_date_to:
-                                                                    e.target
-                                                                        .value,
-                                                            })
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                        </div>
-                                        <Button
-                                            size="sm"
-                                            onClick={() =>
-                                                applyFilters(localFilters)
-                                            }
-                                            className="bg-yellow-600 hover:bg-yellow-700"
-                                        >
-                                            Appliquer
-                                        </Button>
-                                    </CollapsibleContent>
-                                </Collapsible>
-
-                                {rapports.data.length > 0 ? (
-                                    <>
-                                        <div className="rounded-md border">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>
-                                                            Date
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Type de dépense
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Montant
-                                                        </TableHead>
-                                                        <TableHead>
-                                                            Remarques
-                                                        </TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {rapports.data.map(
-                                                        (rapport) => (
-                                                            <TableRow
-                                                                key={rapport.id}
-                                                            >
-                                                                <TableCell>
-                                                                    {rapport.date_operation
-                                                                        ? new Date(
-                                                                              rapport.date_operation
-                                                                          ).toLocaleDateString(
-                                                                              "fr-FR"
-                                                                          )
-                                                                        : "-"}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <Badge variant="outline">
-                                                                        {rapport.type_depense ||
-                                                                            "Non spécifié"}
-                                                                    </Badge>
-                                                                </TableCell>
-                                                                <TableCell className="font-medium">
-                                                                    {rapport.montant?.toLocaleString()}{" "}
-                                                                    DH
-                                                                </TableCell>
-                                                                <TableCell className="max-w-xs truncate">
-                                                                    {rapport.remarques ||
-                                                                        "-"}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        )
-                                                    )}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-
-                                        {rapports.last_page > 1 && (
-                                            <div className="flex justify-center">
-                                                <div className="flex gap-2">
-                                                    {rapports.links.map(
-                                                        (link, index) => (
-                                                            <Button
-                                                                key={index}
-                                                                variant={
-                                                                    link.active
-                                                                        ? "default"
-                                                                        : "outline"
-                                                                }
-                                                                size="sm"
-                                                                onClick={() => {
-                                                                    if (
-                                                                        link.url
-                                                                    ) {
-                                                                        router.get(
-                                                                            link.url
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                disabled={
-                                                                    !link.url
-                                                                }
-                                                                dangerouslySetInnerHTML={{
-                                                                    __html: link.label,
-                                                                }}
-                                                            />
-                                                        )
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                        <p className="text-gray-600">
-                                            Aucune dépense trouvée
-                                        </p>
-                                    </div>
-                                )}
-                            </TabsContent>
-                        </Tabs>
+                {/* Utilisation carburant */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Utilisation carburant récente</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {utilisationsCarburant?.length > 0 ? (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Type carburant</TableHead>
+                                        <TableHead>Quantité</TableHead>
+                                        <TableHead>Prix unitaire</TableHead>
+                                        <TableHead>Total</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {utilisationsCarburant.map((utilisation) => (
+                                        <TableRow key={utilisation.id}>
+                                            <TableCell>{new Date(utilisation.date_utilisation).toLocaleDateString('fr-FR')}</TableCell>
+                                            <TableCell>{utilisation.carburant?.type_carburant}</TableCell>
+                                            <TableCell>{utilisation.quantite} L</TableCell>
+                                            <TableCell>{utilisation.prix_unitaire} DT/L</TableCell>
+                                            <TableCell className="font-medium">{(utilisation.quantite * utilisation.prix_unitaire).toFixed(2)} DT</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                            <p className="text-gray-500 text-center py-4">Aucune utilisation de carburant trouvée</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>
-
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <AlertCircle className="h-5 w-5 text-red-600" />
-                            Confirmer la suppression
-                        </DialogTitle>
-                        <DialogDescription>
-                            Êtes-vous sûr de vouloir supprimer le véhicule "
-                            <span className="font-medium">{vehicule.nom}</span>"
-                            ? Cette action est irréversible et supprimera
-                            également tous les enregistrements associés.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setDeleteDialogOpen(false)}
-                        >
-                            Annuler
-                        </Button>
-                        <Button variant="destructive" onClick={handleDelete}>
-                            Supprimer définitivement
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </AdminLayout>
     );
-};
-
-export default VehiculesShow;
+}

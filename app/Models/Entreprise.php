@@ -9,16 +9,20 @@ class Entreprise extends Model
 {
     use HasFactory;
 
+    protected $table = 'entreprise';
+
     protected $fillable = [
-        'nom',
-        'responsable',
-        'email',
-        'telephone',
-        'adresse',
+        'nom_entreprise',
         'ice',
         'rc',
-        'patente'
+        'cnss',
+        'if',
+        'logo',
+        'description',
+        'date_creation',
     ];
 
-    // No relationships - standalone entity
+    protected $casts = [
+        'date_creation' => 'date',
+    ];
 }

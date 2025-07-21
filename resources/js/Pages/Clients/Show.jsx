@@ -1,1029 +1,560 @@
-import React, { useState } from "react";
-import { Head, Link, router, useForm } from "@inertiajs/react";
-import {
-    ArrowLeft,
-    Edit,
-    User,
-    Phone,
-    MapPin,
-    Hash,
-    CreditCard,
-    ShoppingCart,
-    FileText,
-    Construction,
-    Plus,
-    Download,
-    RotateCcw,
-    Filter,
-    Search,
-    Eye,
-    Calendar,
-    TrendingUp,
-    AlertCircle,
-    CheckCircle,
-    Clock,
-    MoreHorizontal,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import AdminLayout from "@/Layouts/Layout";
+import React, { useState } from 'react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import AdminLayout from '@/Layouts/AdminLayout';
+import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
+import { Textarea } from '@/Components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
+import { Badge } from '@/Components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
+import { Separator } from '@/Components/ui/separator';
+import { ArrowLeft, Edit, User, Phone, MapPin, DollarSign, ShoppingCart, Truck, Plus, Calendar, FileText } from 'lucide-react';
 
-export default function ClientsShow({
-    client,
-    commandes,
-    rapportsDettes,
-    rapportsLocation,
-    stats,
+export default function Show({ 
+    client, 
+    dettesCalculees, 
+    commandes, 
+    locationsActuelles, 
+    locations, 
+    vehicules, 
+    chauffeurs, 
+    enginsLourds 
 }) {
-    const [resetDebtDialog, setResetDebtDialog] = useState(false);
-    const [rentEngineDialog, setRentEngineDialog] = useState(false);
-    const [availableEngines, setAvailableEngines] = useState([]);
-    const [commandesFilter, setCommandesFilter] = useState("");
-    const [dettesFilter, setDettesFilter] = useState("");
-    const [locationFilter, setLocationFilter] = useState("");
+    const [showCommandeDialog, setShowCommandeDialog] = useState(false);
+    const [showLocationDialog, setShowLocationDialog] = useState(false);
 
-    // Form for renting engines
-    const {
-        data: rentData,
-        setData: setRentData,
-        post: postRent,
-        processing: rentProcessing,
-        errors: rentErrors,
-        reset: resetRent,
-    } = useForm({
-        engin_lourd_id: "",
-        quantite: 1,
-        prix_par_heure: "",
-        date_operation: new Date().toISOString().split("T")[0],
-        remarques: "",
+    const { data: commandeData, setData: setCommandeData, post: postCommande, processing: processingCommande, errors: commandeErrors, reset: resetCommande } = useForm({
+        date_commande: '',
+        vehicule_id: '',
+        chauffeur_id: '',
+        commentaire: ''
     });
 
-    // Load available engines when dialog opens
-    const loadAvailableEngines = async () => {
-        try {
-            const response = await fetch(route("clients.available-engines"));
-            const engines = await response.json();
-            setAvailableEngines(engines);
-        } catch (error) {
-            console.error("Erreur lors du chargement des engins:", error);
-        }
-    };
+    const { data: locationData, setData: setLocationData, post: postLocation, processing: processingLocation, errors: locationErrors, reset: resetLocation } = useForm({
+        engin_id: '',
+        date_debut: '',
+        date_fin: '',
+        prix_location: '',
+        commentaire: ''
+    });
 
-    // Handle debt reset
-    const handleResetDettes = () => {
-        router.post(
-            route("clients.reset-dettes", client.id),
-            {},
-            {
-                onSuccess: () => {
-                    setResetDebtDialog(false);
-                },
-            }
-        );
-    };
-
-    // Handle engine rental
-    const handleRentEngine = (e) => {
+    const handleCommandeSubmit = (e) => {
         e.preventDefault();
-        postRent(route("clients.rent-engine", client.id), {
+        postCommande(`/clients/${client.id}/commandes`, {
             onSuccess: () => {
-                setRentEngineDialog(false);
-                resetRent();
-            },
+                setShowCommandeDialog(false);
+                resetCommande();
+            }
         });
     };
 
-    // Filter commandes
-    const filteredCommandes = commandes.data.filter(
-        (commande) =>
-            commande.id.toString().includes(commandesFilter) ||
-            commande.status
-                .toLowerCase()
-                .includes(commandesFilter.toLowerCase()) ||
-            commande.montant_totale.toString().includes(commandesFilter)
-    );
-
-    // Filter debt reports
-    const filteredDettes = rapportsDettes.data.filter(
-        (rapport) =>
-            rapport.montant.toString().includes(dettesFilter) ||
-            (rapport.status &&
-                rapport.status
-                    .toLowerCase()
-                    .includes(dettesFilter.toLowerCase())) ||
-            (rapport.remarques &&
-                rapport.remarques
-                    .toLowerCase()
-                    .includes(dettesFilter.toLowerCase()))
-    );
-
-    // Filter location reports
-    const filteredLocation = rapportsLocation.data.filter(
-        (rapport) =>
-            rapport.engin_lourd?.nom
-                ?.toLowerCase()
-                .includes(locationFilter.toLowerCase()) ||
-            rapport.montant_totale.toString().includes(locationFilter) ||
-            (rapport.remarques &&
-                rapport.remarques
-                    .toLowerCase()
-                    .includes(locationFilter.toLowerCase()))
-    );
-
-    // Format currency
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat("fr-MA", {
-            style: "currency",
-            currency: "MAD",
-        }).format(amount);
+    const handleLocationSubmit = (e) => {
+        e.preventDefault();
+        postLocation(`/clients/${client.id}/locations`, {
+            onSuccess: () => {
+                setShowLocationDialog(false);
+                resetLocation();
+            }
+        });
     };
 
-    // Get status badge for commandes
-    const getStatusBadge = (status) => {
-        const statusConfig = {
-            pending: {
-                color: "bg-yellow-100 text-yellow-800",
-                text: "En attente",
-            },
-            processing: {
-                color: "bg-blue-100 text-blue-800",
-                text: "En cours",
-            },
-            completed: {
-                color: "bg-green-100 text-green-800",
-                text: "Terminé",
-            },
-            cancelled: { color: "bg-red-100 text-red-800", text: "Annulé" },
-        };
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('fr-FR', {
+            style: 'currency',
+            currency: 'MAD'
+        }).format(amount || 0);
+    };
 
-        const config = statusConfig[status] || statusConfig["pending"];
-        return <Badge className={config.color}>{config.text}</Badge>;
+    const formatDate = (date) => {
+        return new Date(date).toLocaleDateString('fr-FR');
+    };
+
+    const getStatutBadge = (statut) => {
+        const variants = {
+            'en_cours': 'default',
+            'termine': 'secondary',
+            'annule': 'destructive',
+            'paye': 'default',
+            'non_paye': 'destructive',
+            'partiellement_paye': 'secondary'
+        };
+        return <Badge variant={variants[statut] || 'outline'}>{statut.replace('_', ' ')}</Badge>;
     };
 
     return (
-        <>
-            <AdminLayout title={`Client - ${client.nom}`}>
-                <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex items-center space-x-4">
-                            <Link href={route("clients.index")}>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="bg-white"
-                                >
-                                    <ArrowLeft className="h-4 w-4 mr-2" />
-                                    Retour
-                                </Button>
-                            </Link>
-                            <div>
-                                <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                                    <User className="h-8 w-8 mr-3 text-yellow-600" />
-                                    {client.nom}
-                                </h1>
-                                <p className="text-gray-600 mt-1">
-                                    Profil client et historique des transactions
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                onClick={() => setRentEngineDialog(true)}
-                                onMouseEnter={loadAvailableEngines}
-                                className="bg-blue-500 hover:bg-blue-600 text-white"
-                            >
-                                <Construction className="h-4 w-4 mr-2" />
-                                Louer Engin
+        <AdminLayout>
+            <Head title={client.nom_complet} />
+
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link href="/clients">
+                            <Button variant="outline" size="sm">
+                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                Retour
                             </Button>
-                            <Link href={route("clients.edit", client.id)}>
-                                <Button className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900">
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Modifier
-                                </Button>
-                            </Link>
+                        </Link>
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900">{client.nom_complet}</h1>
+                            <p className="text-gray-600 mt-1">Détails du client</p>
                         </div>
                     </div>
-
-                    {/* Client Information Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Basic Info */}
-                        <Card className="bg-white border-gray-200">
-                            <CardContent className="p-6">
-                                <div className="space-y-3">
-                                    <div className="flex items-center">
-                                        <Hash className="h-4 w-4 text-gray-400 mr-2" />
-                                        <span className="text-sm text-gray-600">
-                                            CIN:
-                                        </span>
-                                        <span className="ml-2 font-mono font-medium">
-                                            {client.cin}
-                                        </span>
-                                    </div>
-
-                                    {client.telephone && (
-                                        <div className="flex items-center">
-                                            <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                                            <span className="text-sm text-gray-600">
-                                                Tél:
-                                            </span>
-                                            <span className="ml-2 font-medium">
-                                                {client.telephone}
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {client.adresse && (
-                                        <div className="flex items-start">
-                                            <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5" />
-                                            <div>
-                                                <span className="text-sm text-gray-600">
-                                                    Adresse:
-                                                </span>
-                                                <p className="text-sm font-medium mt-1">
-                                                    {client.adresse}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Financial Info */}
-                        <Card className="bg-white border-gray-200">
-                            <CardContent className="p-6">
-                                <div className="flex items-center">
-                                    <CreditCard className="h-8 w-8 text-red-500" />
-                                    <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-600">
-                                            Dettes Actuelles
-                                        </p>
-                                        <p className="text-2xl font-bold text-gray-900">
-                                            {formatCurrency(client.dettes)}
-                                        </p>
-                                        {client.dettes > 0 && (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="mt-2 text-red-600 border-red-200 hover:bg-red-50"
-                                                onClick={() =>
-                                                    setResetDebtDialog(true)
-                                                }
-                                            >
-                                                <RotateCcw className="h-3 w-3 mr-1" />
-                                                Remettre à zéro
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Orders Stats */}
-                        <Card className="bg-white border-gray-200">
-                            <CardContent className="p-6">
-                                <div className="flex items-center">
-                                    <ShoppingCart className="h-8 w-8 text-blue-500" />
-                                    <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-600">
-                                            Commandes
-                                        </p>
-                                        <p className="text-2xl font-bold text-gray-900">
-                                            {stats.total_commandes}
-                                        </p>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            {stats.commandes_en_cours} en cours
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Total Purchases */}
-                        <Card className="bg-white border-gray-200">
-                            <CardContent className="p-6">
-                                <div className="flex items-center">
-                                    <TrendingUp className="h-8 w-8 text-green-500" />
-                                    <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-600">
-                                            Total Achats
-                                        </p>
-                                        <p className="text-2xl font-bold text-gray-900">
-                                            {formatCurrency(stats.total_achats)}
-                                        </p>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Locations:{" "}
-                                            {formatCurrency(
-                                                stats.total_locations
-                                            )}
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Tabs for different sections */}
-                    <Tabs defaultValue="commandes" className="space-y-4">
-                        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3">
-                            <TabsTrigger
-                                value="commandes"
-                                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-yellow-900"
-                            >
-                                <ShoppingCart className="h-4 w-4 mr-2" />
-                                Commandes ({commandes.total})
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="dettes"
-                                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-yellow-900"
-                            >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Rapports Dettes ({rapportsDettes.total})
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="locations"
-                                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-yellow-900"
-                            >
-                                <Construction className="h-4 w-4 mr-2" />
-                                Locations Engins ({rapportsLocation.total})
-                            </TabsTrigger>
-                        </TabsList>
-
-                        {/* Commandes Tab */}
-                        <TabsContent value="commandes" className="space-y-4">
-                            <Card className="bg-white border-gray-200">
-                                <CardHeader>
-                                    <CardTitle>Commandes du Client</CardTitle>
-                                    <CardDescription>
-                                        Historique de toutes les commandes
-                                        passées par ce client
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {/* Filter */}
-                                    <div className="mb-4">
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                                            <Input
-                                                placeholder="Filtrer par ID, statut, montant..."
-                                                value={commandesFilter}
-                                                onChange={(e) =>
-                                                    setCommandesFilter(
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="pl-10"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow className="bg-gray-50">
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        ID
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Statut
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Montant Total
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Revenu
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Date
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Actions
-                                                    </TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {filteredCommandes.map(
-                                                    (commande) => (
-                                                        <TableRow
-                                                            key={commande.id}
-                                                            className="hover:bg-gray-50"
-                                                        >
-                                                            <TableCell className="font-medium">
-                                                                #{commande.id}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {getStatusBadge(
-                                                                    commande.status
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="font-medium">
-                                                                {formatCurrency(
-                                                                    commande.montant_totale
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="font-medium text-green-600">
-                                                                {formatCurrency(
-                                                                    commande.revenu
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="text-sm text-gray-600">
-                                                                {new Date(
-                                                                    commande.created_at
-                                                                ).toLocaleDateString(
-                                                                    "fr-FR"
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Link
-                                                                    href={route(
-                                                                        "commandes.show",
-                                                                        commande.id
-                                                                    )}
-                                                                >
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                    >
-                                                                        <Eye className="h-3 w-3 mr-1" />
-                                                                        Voir
-                                                                    </Button>
-                                                                </Link>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    )
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-
-                                    {filteredCommandes.length === 0 && (
-                                        <div className="text-center py-8">
-                                            <ShoppingCart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                            <p className="text-gray-500">
-                                                {commandesFilter
-                                                    ? "Aucune commande ne correspond au filtre"
-                                                    : "Aucune commande trouvée"}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* Pagination for commandes */}
-                                    {commandes.links && (
-                                        <div className="flex justify-center mt-4">
-                                            {commandes.links.map(
-                                                (link, index) => (
-                                                    <Button
-                                                        key={index}
-                                                        variant={
-                                                            link.active
-                                                                ? "default"
-                                                                : "outline"
-                                                        }
-                                                        size="sm"
-                                                        className={
-                                                            link.active
-                                                                ? "bg-yellow-400 text-yellow-900 hover:bg-yellow-500"
-                                                                : ""
-                                                        }
-                                                        onClick={() => {
-                                                            if (link.url) {
-                                                                router.get(
-                                                                    link.url
-                                                                );
-                                                            }
-                                                        }}
-                                                        disabled={!link.url}
-                                                    >
-                                                        <span
-                                                            dangerouslySetInnerHTML={{
-                                                                __html: link.label,
-                                                            }}
-                                                        />
-                                                    </Button>
-                                                )
-                                            )}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        {/* Debt Reports Tab */}
-                        <TabsContent value="dettes" className="space-y-4">
-                            <Card className="bg-white border-gray-200">
-                                <CardHeader>
-                                    <CardTitle>Rapports de Dettes</CardTitle>
-                                    <CardDescription>
-                                        Historique des paiements et ajustements
-                                        de dettes
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {/* Filter */}
-                                    <div className="mb-4">
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                                            <Input
-                                                placeholder="Filtrer par montant, statut, remarques..."
-                                                value={dettesFilter}
-                                                onChange={(e) =>
-                                                    setDettesFilter(
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="pl-10"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow className="bg-gray-50">
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Montant
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Statut
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Date Opération
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Remarques
-                                                    </TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {filteredDettes.map(
-                                                    (rapport) => (
-                                                        <TableRow
-                                                            key={rapport.id}
-                                                            className="hover:bg-gray-50"
-                                                        >
-                                                            <TableCell>
-                                                                <span
-                                                                    className={`font-medium ${
-                                                                        rapport.montant >=
-                                                                        0
-                                                                            ? "text-red-600"
-                                                                            : "text-green-600"
-                                                                    }`}
-                                                                >
-                                                                    {rapport.montant >=
-                                                                    0
-                                                                        ? "+"
-                                                                        : ""}
-                                                                    {formatCurrency(
-                                                                        rapport.montant
-                                                                    )}
-                                                                </span>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {rapport.status && (
-                                                                    <Badge
-                                                                        variant={
-                                                                            rapport.status ===
-                                                                            "payé"
-                                                                                ? "default"
-                                                                                : "secondary"
-                                                                        }
-                                                                    >
-                                                                        {
-                                                                            rapport.status
-                                                                        }
-                                                                    </Badge>
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="text-sm text-gray-600">
-                                                                {rapport.date_operation
-                                                                    ? new Date(
-                                                                          rapport.date_operation
-                                                                      ).toLocaleDateString(
-                                                                          "fr-FR"
-                                                                      )
-                                                                    : new Date(
-                                                                          rapport.created_at
-                                                                      ).toLocaleDateString(
-                                                                          "fr-FR"
-                                                                      )}
-                                                            </TableCell>
-                                                            <TableCell className="text-sm text-gray-600 max-w-xs truncate">
-                                                                {rapport.remarques ||
-                                                                    "-"}
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    )
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-
-                                    {filteredDettes.length === 0 && (
-                                        <div className="text-center py-8">
-                                            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                            <p className="text-gray-500">
-                                                {dettesFilter
-                                                    ? "Aucun rapport ne correspond au filtre"
-                                                    : "Aucun rapport de dette trouvé"}
-                                            </p>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        {/* Engine Rental Tab */}
-                        <TabsContent value="locations" className="space-y-4">
-                            <Card className="bg-white border-gray-200">
-                                <CardHeader>
-                                    <CardTitle>
-                                        Locations d'Engins Lourds
-                                    </CardTitle>
-                                    <CardDescription>
-                                        Historique des locations d'engins par ce
-                                        client
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {/* Filter */}
-                                    <div className="mb-4">
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                                            <Input
-                                                placeholder="Filtrer par nom d'engin, montant, remarques..."
-                                                value={locationFilter}
-                                                onChange={(e) =>
-                                                    setLocationFilter(
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="pl-10"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow className="bg-gray-50">
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Engin
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Quantité
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Prix/Heure
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Montant Total
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Date
-                                                    </TableHead>
-                                                    <TableHead className="font-semibold text-gray-900">
-                                                        Remarques
-                                                    </TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {filteredLocation.map(
-                                                    (rapport) => (
-                                                        <TableRow
-                                                            key={rapport.id}
-                                                            className="hover:bg-gray-50"
-                                                        >
-                                                            <TableCell className="font-medium">
-                                                                {rapport
-                                                                    .engin_lourd
-                                                                    ?.nom ||
-                                                                    "Engin supprimé"}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {
-                                                                    rapport.quantite
-                                                                }
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {formatCurrency(
-                                                                    rapport.prix_par_heure
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="font-medium text-green-600">
-                                                                {formatCurrency(
-                                                                    rapport.montant_totale
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="text-sm text-gray-600">
-                                                                {rapport.date_operation
-                                                                    ? new Date(
-                                                                          rapport.date_operation
-                                                                      ).toLocaleDateString(
-                                                                          "fr-FR"
-                                                                      )
-                                                                    : new Date(
-                                                                          rapport.created_at
-                                                                      ).toLocaleDateString(
-                                                                          "fr-FR"
-                                                                      )}
-                                                            </TableCell>
-                                                            <TableCell className="text-sm text-gray-600 max-w-xs truncate">
-                                                                {rapport.remarques ||
-                                                                    "-"}
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    )
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-
-                                    {filteredLocation.length === 0 && (
-                                        <div className="text-center py-8">
-                                            <Construction className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                            <p className="text-gray-500">
-                                                {locationFilter
-                                                    ? "Aucune location ne correspond au filtre"
-                                                    : "Aucune location d'engin trouvée"}
-                                            </p>
-                                            <Button
-                                                className="mt-4 bg-blue-500 hover:bg-blue-600 text-white"
-                                                onClick={() =>
-                                                    setRentEngineDialog(true)
-                                                }
-                                                onMouseEnter={
-                                                    loadAvailableEngines
-                                                }
-                                            >
-                                                <Plus className="h-4 w-4 mr-2" />
-                                                Première Location
-                                            </Button>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
+                    <Link href={`/clients/${client.id}/edit`}>
+                        <Button className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600">
+                            <Edit className="h-4 w-4" />
+                            Modifier
+                        </Button>
+                    </Link>
                 </div>
 
-                {/* Reset Debt Confirmation Dialog */}
-                <AlertDialog
-                    open={resetDebtDialog}
-                    onOpenChange={setResetDebtDialog}
-                >
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>
-                                Remettre les dettes à zéro
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Êtes-vous sûr de vouloir remettre les dettes de
-                                "{client.nom}" à zéro ? Le montant actuel de{" "}
-                                {formatCurrency(client.dettes)} sera effacé et
-                                un rapport sera créé.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Annuler</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={handleResetDettes}
-                                className="bg-red-600 hover:bg-red-700"
-                            >
-                                Confirmer la remise à zéro
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-
-                {/* Rent Engine Dialog */}
-                <Dialog
-                    open={rentEngineDialog}
-                    onOpenChange={setRentEngineDialog}
-                >
-                    <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Louer un Engin Lourd</DialogTitle>
-                            <DialogDescription>
-                                Enregistrer une nouvelle location d'engin pour{" "}
-                                {client.nom}
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <form onSubmit={handleRentEngine} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="engin_lourd_id">
-                                    Engin disponible *
-                                </Label>
-                                <Select
-                                    value={rentData.engin_lourd_id}
-                                    onValueChange={(value) =>
-                                        setRentData("engin_lourd_id", value)
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Sélectionner un engin" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {availableEngines.map((engin) => (
-                                            <SelectItem
-                                                key={engin.id}
-                                                value={engin.id.toString()}
-                                            >
-                                                {engin.nom} - {engin.reference}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {rentErrors.engin_lourd_id && (
-                                    <p className="text-sm text-red-600">
-                                        {rentErrors.engin_lourd_id}
-                                    </p>
-                                )}
+                {/* Client Info Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Informations</CardTitle>
+                            <User className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <Phone className="h-3 w-3" />
+                                    <span>{client.telephone || 'Non renseigné'}</span>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <MapPin className="h-3 w-3 mt-0.5" />
+                                    <span className="text-xs">{client.addresse || 'Non renseignée'}</span>
+                                </div>
                             </div>
+                        </CardContent>
+                    </Card>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="quantite">
-                                        Quantité (heures) *
-                                    </Label>
-                                    <Input
-                                        id="quantite"
-                                        type="number"
-                                        min="1"
-                                        value={rentData.quantite}
-                                        onChange={(e) =>
-                                            setRentData(
-                                                "quantite",
-                                                parseInt(e.target.value) || 1
-                                            )
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Dettes Actuelles</CardTitle>
+                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{formatCurrency(client.dettes_actuelle)}</div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Calculées: {formatCurrency(dettesCalculees)}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Commandes</CardTitle>
+                            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{commandes.total}</div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Total des commandes
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Locations Actives</CardTitle>
+                            <Truck className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{locationsActuelles.length}</div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Engins en cours
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Current Rentals */}
+                {locationsActuelles.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Truck className="h-5 w-5" />
+                                Locations d'Engins Lourds en Cours
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {locationsActuelles.map((location) => (
+                                    <Card key={location.id} className="border-l-4 border-l-yellow-500">
+                                        <CardContent className="pt-4">
+                                            <div className="space-y-2">
+                                                <h4 className="font-semibold">{location.engin?.nom || 'Engin inconnu'}</h4>
+                                                <div className="text-sm text-gray-600 space-y-1">
+                                                    <p><strong>Début:</strong> {formatDate(location.date_debut)}</p>
+                                                    <p><strong>Fin:</strong> {formatDate(location.date_fin)}</p>
+                                                    <p><strong>Prix:</strong> {formatCurrency(location.prix_location)}</p>
+                                                </div>
+                                                {getStatutBadge(location.statut)}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Orders Section */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
+                                <ShoppingCart className="h-5 w-5" />
+                                Commandes du Client
+                            </CardTitle>
+                            <Dialog open={showCommandeDialog} onOpenChange={setShowCommandeDialog}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm" className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600">
+                                        <Plus className="h-4 w-4" />
+                                        Nouvelle Commande
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Nouvelle Commande</DialogTitle>
+                                    </DialogHeader>
+                                    <form onSubmit={handleCommandeSubmit} className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="date_commande">Date de Commande *</Label>
+                                            <Input
+                                                id="date_commande"
+                                                type="date"
+                                                value={commandeData.date_commande}
+                                                onChange={(e) => setCommandeData('date_commande', e.target.value)}
+                                                className={commandeErrors.date_commande ? 'border-red-500' : ''}
+                                            />
+                                            {commandeErrors.date_commande && (
+                                                <p className="text-sm text-red-600">{commandeErrors.date_commande}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="vehicule_id">Véhicule *</Label>
+                                            <Select value={commandeData.vehicule_id} onValueChange={(value) => setCommandeData('vehicule_id', value)}>
+                                                <SelectTrigger className={commandeErrors.vehicule_id ? 'border-red-500' : ''}>
+                                                    <SelectValue placeholder="Sélectionner un véhicule" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {vehicules.map((vehicule) => (
+                                                        <SelectItem key={vehicule.id} value={vehicule.id.toString()}>
+                                                            {vehicule.marque} {vehicule.modele} - {vehicule.immatriculation}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {commandeErrors.vehicule_id && (
+                                                <p className="text-sm text-red-600">{commandeErrors.vehicule_id}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="chauffeur_id">Chauffeur *</Label>
+                                            <Select value={commandeData.chauffeur_id} onValueChange={(value) => setCommandeData('chauffeur_id', value)}>
+                                                <SelectTrigger className={commandeErrors.chauffeur_id ? 'border-red-500' : ''}>
+                                                    <SelectValue placeholder="Sélectionner un chauffeur" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {chauffeurs.map((chauffeur) => (
+                                                        <SelectItem key={chauffeur.id} value={chauffeur.id.toString()}>
+                                                            {chauffeur.nom} {chauffeur.prenom}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {commandeErrors.chauffeur_id && (
+                                                <p className="text-sm text-red-600">{commandeErrors.chauffeur_id}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="commentaire_commande">Commentaire</Label>
+                                            <Textarea
+                                                id="commentaire_commande"
+                                                value={commandeData.commentaire}
+                                                onChange={(e) => setCommandeData('commentaire', e.target.value)}
+                                                placeholder="Commentaire optionnel"
+                                                rows={3}
+                                            />
+                                        </div>
+
+                                        <div className="flex gap-2 pt-4">
+                                            <Button type="submit" disabled={processingCommande} className="bg-yellow-500 hover:bg-yellow-600">
+                                                {processingCommande ? 'Création...' : 'Créer'}
+                                            </Button>
+                                            <Button type="button" variant="outline" onClick={() => setShowCommandeDialog(false)}>
+                                                Annuler
+                                            </Button>
+                                        </div>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        {commandes.data.length === 0 ? (
+                            <p className="text-center text-gray-500 py-8">Aucune commande trouvée</p>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Véhicule</TableHead>
+                                        <TableHead>Chauffeur</TableHead>
+                                        <TableHead>Montant</TableHead>
+                                        <TableHead>Paiement</TableHead>
+                                        <TableHead>Commentaire</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {commandes.data.map((commande) => (
+                                        <TableRow key={commande.id}>
+                                            <TableCell>{formatDate(commande.date_commande)}</TableCell>
+                                            <TableCell>
+                                                {commande.vehicule ? 
+                                                    `${commande.vehicule.marque} ${commande.vehicule.modele}` : 
+                                                    'Non assigné'
+                                                }
+                                            </TableCell>
+                                            <TableCell>
+                                                {commande.chauffeur ? 
+                                                    `${commande.chauffeur.nom} ${commande.chauffeur.prenom}` : 
+                                                    'Non assigné'
+                                                }
+                                            </TableCell>
+                                            <TableCell>{formatCurrency(commande.montant_total)}</TableCell>
+                                            <TableCell>
+                                                {commande.paiement ? 
+                                                    getStatutBadge(commande.paiement.statut) : 
+                                                    <Badge variant="outline">Aucun paiement</Badge>
+                                                }
+                                            </TableCell>
+                                            <TableCell className="max-w-xs truncate">
+                                                {commande.commentaire || '-'}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
+
+                        {/* Pagination for orders */}
+                        {commandes.last_page > 1 && (
+                            <div className="flex justify-center mt-4">
+                                <div className="flex items-center space-x-2">
+                                    {commandes.links.map((link, index) => {
+                                        if (link.url === null) {
+                                            return (
+                                                <Button key={index} variant="outline" disabled size="sm">
+                                                    <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                                                </Button>
+                                            );
                                         }
-                                        placeholder="1"
-                                    />
-                                    {rentErrors.quantite && (
-                                        <p className="text-sm text-red-600">
-                                            {rentErrors.quantite}
-                                        </p>
-                                    )}
-                                </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="prix_par_heure">
-                                        Prix/Heure (MAD) *
-                                    </Label>
-                                    <Input
-                                        id="prix_par_heure"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        value={rentData.prix_par_heure}
-                                        onChange={(e) =>
-                                            setRentData(
-                                                "prix_par_heure",
-                                                e.target.value
-                                            )
+                                        return (
+                                            <Link key={index} href={link.url}>
+                                                <Button
+                                                    variant={link.active ? "default" : "outline"}
+                                                    className={link.active ? "bg-yellow-500 hover:bg-yellow-600" : ""}
+                                                    size="sm"
+                                                >
+                                                    <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                                                </Button>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Equipment Rentals Section */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
+                                <Truck className="h-5 w-5" />
+                                Historique des Locations d'Engins Lourds
+                            </CardTitle>
+                            <Dialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm" className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600">
+                                        <Plus className="h-4 w-4" />
+                                        Nouvelle Location
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Nouvelle Location d'Engin Lourd</DialogTitle>
+                                    </DialogHeader>
+                                    <form onSubmit={handleLocationSubmit} className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="engin_id">Engin Lourd *</Label>
+                                            <Select value={locationData.engin_id} onValueChange={(value) => setLocationData('engin_id', value)}>
+                                                <SelectTrigger className={locationErrors.engin_id ? 'border-red-500' : ''}>
+                                                    <SelectValue placeholder="Sélectionner un engin" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {enginsLourds.map((engin) => (
+                                                        <SelectItem key={engin.id} value={engin.id.toString()}>
+                                                            {engin.nom} - {engin.marque} {engin.modele}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {locationErrors.engin_id && (
+                                                <p className="text-sm text-red-600">{locationErrors.engin_id}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="date_debut">Date Début *</Label>
+                                                <Input
+                                                    id="date_debut"
+                                                    type="date"
+                                                    value={locationData.date_debut}
+                                                    onChange={(e) => setLocationData('date_debut', e.target.value)}
+                                                    className={locationErrors.date_debut ? 'border-red-500' : ''}
+                                                />
+                                                {locationErrors.date_debut && (
+                                                    <p className="text-sm text-red-600">{locationErrors.date_debut}</p>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label htmlFor="date_fin">Date Fin *</Label>
+                                                <Input
+                                                    id="date_fin"
+                                                    type="date"
+                                                    value={locationData.date_fin}
+                                                    onChange={(e) => setLocationData('date_fin', e.target.value)}
+                                                    className={locationErrors.date_fin ? 'border-red-500' : ''}
+                                                />
+                                                {locationErrors.date_fin && (
+                                                    <p className="text-sm text-red-600">{locationErrors.date_fin}</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="prix_location">Prix de Location (MAD) *</Label>
+                                            <Input
+                                                id="prix_location"
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={locationData.prix_location}
+                                                onChange={(e) => setLocationData('prix_location', e.target.value)}
+                                                placeholder="0.00"
+                                                className={locationErrors.prix_location ? 'border-red-500' : ''}
+                                            />
+                                            {locationErrors.prix_location && (
+                                                <p className="text-sm text-red-600">{locationErrors.prix_location}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="commentaire_location">Commentaire</Label>
+                                            <Textarea
+                                                id="commentaire_location"
+                                                value={locationData.commentaire}
+                                                onChange={(e) => setLocationData('commentaire', e.target.value)}
+                                                placeholder="Commentaire optionnel"
+                                                rows={3}
+                                            />
+                                        </div>
+
+                                        <div className="flex gap-2 pt-4">
+                                            <Button type="submit" disabled={processingLocation} className="bg-yellow-500 hover:bg-yellow-600">
+                                                {processingLocation ? 'Création...' : 'Créer'}
+                                            </Button>
+                                            <Button type="button" variant="outline" onClick={() => setShowLocationDialog(false)}>
+                                                Annuler
+                                            </Button>
+                                        </div>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        {locations.data.length === 0 ? (
+                            <p className="text-center text-gray-500 py-8">Aucune location trouvée</p>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Engin</TableHead>
+                                        <TableHead>Date Début</TableHead>
+                                        <TableHead>Date Fin</TableHead>
+                                        <TableHead>Prix</TableHead>
+                                        <TableHead>Statut</TableHead>
+                                        <TableHead>Commentaire</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {locations.data.map((location) => (
+                                        <TableRow key={location.id}>
+                                            <TableCell>
+                                                {location.engin ? 
+                                                    `${location.engin.nom} - ${location.engin.marque}` : 
+                                                    'Engin inconnu'
+                                                }
+                                            </TableCell>
+                                            <TableCell>{formatDate(location.date_debut)}</TableCell>
+                                            <TableCell>{formatDate(location.date_fin)}</TableCell>
+                                            <TableCell>{formatCurrency(location.prix_location)}</TableCell>
+                                            <TableCell>{getStatutBadge(location.statut)}</TableCell>
+                                            <TableCell className="max-w-xs truncate">
+                                                {location.commentaire || '-'}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
+
+                        {/* Pagination for locations */}
+                        {locations.last_page > 1 && (
+                            <div className="flex justify-center mt-4">
+                                <div className="flex items-center space-x-2">
+                                    {locations.links.map((link, index) => {
+                                        if (link.url === null) {
+                                            return (
+                                                <Button key={index} variant="outline" disabled size="sm">
+                                                    <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                                                </Button>
+                                            );
                                         }
-                                        placeholder="0.00"
-                                    />
-                                    {rentErrors.prix_par_heure && (
-                                        <p className="text-sm text-red-600">
-                                            {rentErrors.prix_par_heure}
-                                        </p>
-                                    )}
+
+                                        return (
+                                            <Link key={index} href={link.url}>
+                                                <Button
+                                                    variant={link.active ? "default" : "outline"}
+                                                    className={link.active ? "bg-yellow-500 hover:bg-yellow-600" : ""}
+                                                    size="sm"
+                                                >
+                                                    <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                                                </Button>
+                                            </Link>
+                                        );
+                                    })}
                                 </div>
                             </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="date_operation">
-                                    Date de location *
-                                </Label>
-                                <Input
-                                    id="date_operation"
-                                    type="date"
-                                    value={rentData.date_operation}
-                                    onChange={(e) =>
-                                        setRentData(
-                                            "date_operation",
-                                            e.target.value
-                                        )
-                                    }
-                                />
-                                {rentErrors.date_operation && (
-                                    <p className="text-sm text-red-600">
-                                        {rentErrors.date_operation}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="remarques">Remarques</Label>
-                                <Textarea
-                                    id="remarques"
-                                    value={rentData.remarques}
-                                    onChange={(e) =>
-                                        setRentData("remarques", e.target.value)
-                                    }
-                                    placeholder="Notes supplémentaires..."
-                                    rows={3}
-                                />
-                            </div>
-
-                            {rentData.quantite && rentData.prix_par_heure && (
-                                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                                    <p className="text-sm text-green-700">
-                                        <strong>Montant total: </strong>
-                                        {formatCurrency(
-                                            rentData.quantite *
-                                                parseFloat(
-                                                    rentData.prix_par_heure || 0
-                                                )
-                                        )}
-                                    </p>
-                                </div>
-                            )}
-
-                            <DialogFooter>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setRentEngineDialog(false)}
-                                >
-                                    Annuler
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={rentProcessing}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white"
-                                >
-                                    {rentProcessing
-                                        ? "Enregistrement..."
-                                        : "Enregistrer Location"}
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-            </AdminLayout>
-        </>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+        </AdminLayout>
     );
 }

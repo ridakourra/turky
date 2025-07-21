@@ -3,183 +3,196 @@
 namespace App\Http\Controllers;
 
 use App\Models\EnginLourd;
-use App\Models\Employer;
+use App\Models\Client;
+use App\Models\Carburant;
+use App\Models\DepenseMachine;
+use App\Models\UtilisationCarburant;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class EnginLourdController extends Controller
 {
     public function index(Request $request)
     {
-        $query = EnginLourd::with('employer');
+        $query = EnginLourd::query();
 
-        // Search functionality
+        // Filtrage
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('nom', 'like', "%{$search}%")
-                  ->orWhere('reference', 'like', "%{$search}%")
-                  ->orWhere('type', 'like', "%{$search}%")
-                  ->orWhere('marque', 'like', "%{$search}%")
-                  ->orWhere('modele', 'like', "%{$search}%")
-                  ->orWhere('statut', 'like', "%{$search}%");
+            $query->where(function ($q) use ($request) {
+                $q->where('reference', 'like', '%' . $request->search . '%')
+                  ->orWhere('marque', 'like', '%' . $request->search . '%')
+                  ->orWhere('modele', 'like', '%' . $request->search . '%');
             });
         }
 
-        // Advanced filters
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
+        if ($request->filled('type_engin') && $request->type_engin !== 'all') {
+            $query->where('type_engin', $request->type_engin);
         }
 
-        if ($request->filled('statut')) {
+        if ($request->filled('statut') && $request->statut !== 'all') {
             $query->where('statut', $request->statut);
         }
 
-        if ($request->filled('marque')) {
-            $query->where('marque', 'like', "%{$request->marque}%");
-        }
-
-        if ($request->filled('employer_id')) {
-            $query->where('employer_id', $request->employer_id);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->where('created_at', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
-        }
-
-        // Sorting
+        // Tri
         $sortField = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
         $query->orderBy($sortField, $sortDirection);
 
-        $enginsLourds = $query->paginate(15)->withQueryString();
-        $employers = Employer::select('id', 'nom')->get();
+        $enginsLourds = $query->paginate(10)->withQueryString();
 
         return Inertia::render('EnginsLourds/Index', [
             'enginsLourds' => $enginsLourds,
-            'employers' => $employers,
-            'filters' => $request->only(['search', 'type', 'statut', 'marque', 'employer_id', 'date_from', 'date_to', 'sort', 'direction'])
+            'filters' => $request->only(['search', 'type_engin', 'statut']),
+            'sort' => $request->only(['sort', 'direction'])
         ]);
     }
 
     public function create()
     {
-        $employers = Employer::select('id', 'nom')->where('actif', true)->get();
-
-        return Inertia::render('EnginsLourds/Create', [
-            'employers' => $employers
-        ]);
+        return Inertia::render('EnginsLourds/Create');
     }
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'nom' => 'required|string|max:255',
-            'reference' => 'required|string|max:255|unique:engins_lourds,reference',
-            'type' => 'nullable|string|max:255',
-            'marque' => 'nullable|string|max:255',
+        $validated = $request->validate([
+            'reference' => 'required|string|unique:engins_lourds,reference',
+            'marque' => 'required|string|max:255',
             'modele' => 'nullable|string|max:255',
-            'capacite' => 'nullable|numeric',
-            'annee' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
-            'numero_serie' => 'nullable|string|max:255',
-            'numero_moteur' => 'nullable|string|max:255',
-            'location_par_heure' => 'nullable|numeric|min:0',
-            'carburant_type' => 'nullable|string|max:255',
-            'date_assurance' => 'nullable|date',
-            'statut' => 'required|in:available,in_use,maintenance,broken',
-            'employer_id' => 'nullable|exists:employers,id'
+            'type_engin' => 'required|in:pelleteuse,bulldozer,grue,autre',
+            'capacite' => 'nullable|numeric|min:0',
+            'statut' => 'nullable|in:actif,en_maintenance,hors_service',
+            'date_acquisition' => 'nullable|date',
+            'prix_acquisition' => 'nullable|numeric|min:0'
         ]);
 
-        if ($validator->fails()) {
-            return back()->withErrors($validator)->withInput();
-        }
+        EnginLourd::create($validated);
 
-        EnginLourd::create($request->all());
-
-        return redirect()->route('engins-lourds.index')->with('success', 'Engin lourd créé avec succès.');
+        return redirect()->route('engins-lourds.index')
+            ->with('success', 'Engin lourd créé avec succès.');
     }
 
     public function show(EnginLourd $enginLourd)
     {
-        $enginLourd->load(['employer', 'rapportsLocation.client']);
+        $enginLourd->load([
+            'locationsEnginsLourds.client',
+            'utilisationsCarburant',
+            'depensesMachines',
+            'transactions'
+        ]);
+
+        // Statistiques
+        $totalLocations = $enginLourd->locationsEnginsLourds->count();
+        $totalDepenses = $enginLourd->depensesMachines->sum('montant');
+        $totalCarburant = $enginLourd->utilisationsCarburant->sum('quantite');
+        $revenusLocations = $enginLourd->locationsEnginsLourds->sum('prix_location');
+
+        // Récupérer les clients pour le formulaire
+        $clients = Client::select('id', 'nom_complet')->get();
+
+        // Récupérer les informations du carburant
+        $carburant = Carburant::first();
 
         return Inertia::render('EnginsLourds/Show', [
-            'enginLourd' => $enginLourd
+            'enginLourd' => $enginLourd,
+            'clients' => $clients,
+            'carburant' => $carburant,
+            'statistiques' => [
+                'total_locations' => $totalLocations,
+                'total_depenses' => $totalDepenses,
+                'total_carburant' => $totalCarburant,
+                'revenus_locations' => $revenusLocations
+            ]
         ]);
     }
 
     public function edit(EnginLourd $enginLourd)
     {
-        $employers = Employer::select('id', 'nom')->where('actif', true)->get();
-
         return Inertia::render('EnginsLourds/Edit', [
-            'enginLourd' => $enginLourd,
-            'employers' => $employers
+            'enginLourd' => $enginLourd
         ]);
     }
 
     public function update(Request $request, EnginLourd $enginLourd)
     {
-        $validator = Validator::make($request->all(), [
-            'nom' => 'required|string|max:255',
-            'reference' => 'required|string|max:255|unique:engins_lourds,reference,' . $enginLourd->id,
-            'type' => 'nullable|string|max:255',
-            'marque' => 'nullable|string|max:255',
+        $validated = $request->validate([
+            'reference' => 'required|string|unique:engins_lourds,reference,' . $enginLourd->id,
+            'marque' => 'required|string|max:255',
             'modele' => 'nullable|string|max:255',
-            'capacite' => 'nullable|numeric',
-            'annee' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
-            'numero_serie' => 'nullable|string|max:255',
-            'numero_moteur' => 'nullable|string|max:255',
-            'location_par_heure' => 'nullable|numeric|min:0',
-            'carburant_type' => 'nullable|string|max:255',
-            'date_assurance' => 'nullable|date',
-            'statut' => 'required|in:available,in_use,maintenance,broken',
-            'employer_id' => 'nullable|exists:employers,id'
+            'type_engin' => 'required|in:pelleteuse,bulldozer,grue,autre',
+            'capacite' => 'nullable|numeric|min:0',
+            'statut' => 'nullable|in:actif,en_maintenance,hors_service',
+            'date_acquisition' => 'nullable|date',
+            'prix_acquisition' => 'nullable|numeric|min:0'
         ]);
 
-        if ($validator->fails()) {
-            return back()->withErrors($validator)->withInput();
-        }
+        $enginLourd->update($validated);
 
-        $enginLourd->update($request->all());
-
-        return redirect()->route('engins-lourds.index')->with('success', 'Engin lourd mis à jour avec succès.');
+        return redirect()->route('engins-lourds.show', $enginLourd)
+            ->with('success', 'Engin lourd mis à jour avec succès.');
     }
 
     public function destroy(EnginLourd $enginLourd)
     {
-        try {
-            $enginLourd->delete();
-            return back()->with('success', 'Engin lourd supprimé avec succès.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Impossible de supprimer cet engin lourd. Il est peut-être lié à d\'autres enregistrements.');
-        }
+        $enginLourd->delete();
+
+        return redirect()->route('engins-lourds.index')
+            ->with('success', 'Engin lourd supprimé avec succès.');
     }
 
-    public function bulkDelete(Request $request)
+    public function addDepense(Request $request, EnginLourd $enginLourd)
     {
-        $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'exists:engins_lourds,id'
+        $validated = $request->validate([
+            'type_depense' => 'required|in:carburant,maintenance,reparation,assurance,autre',
+            'montant' => 'required|numeric|min:0',
+            'date_depense' => 'required|date',
+            'description' => 'nullable|string',
+            'facture_reference' => 'nullable|string'
         ]);
 
-        try {
-            EnginLourd::whereIn('id', $request->ids)->delete();
-            return back()->with('success', count($request->ids) . ' engins lourds supprimés avec succès.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Erreur lors de la suppression des engins lourds.');
-        }
+        DB::transaction(function () use ($validated, $enginLourd) {
+            // Créer la dépense
+            $depense = $enginLourd->depensesMachines()->create($validated);
+
+            // Créer la transaction
+            Transaction::create([
+                'type_transaction' => 'sortie',
+                'reference_type' => EnginLourd::class,
+                'reference_id' => $enginLourd->id,
+                'montant' => $validated['montant'],
+                'description' => 'Dépense ' . $validated['type_depense'] . ' - ' . ($validated['description'] ?? '')
+            ]);
+        });
+
+        return redirect()->route('engins-lourds.show', $enginLourd)
+            ->with('success', 'Dépense ajoutée avec succès.');
     }
 
-    public function export(Request $request)
+    public function addCarburant(Request $request, EnginLourd $enginLourd)
     {
-        // Export functionality can be implemented here
-        // For now, return the same data as index
-        return $this->index($request);
+        $validated = $request->validate([
+            'quantite' => 'required|numeric|min:0',
+            'date_utilisation' => 'required|date',
+            'commentaire' => 'nullable|string'
+        ]);
+
+        DB::transaction(function () use ($validated, $enginLourd) {
+            // Vérifier le niveau de carburant disponible
+            $carburant = Carburant::first();
+
+            if (!$carburant || $carburant->niveau_actuel < $validated['quantite']) {
+                throw new \Exception('Quantité de carburant insuffisante.');
+            }
+
+            // Créer l'utilisation de carburant
+            $enginLourd->utilisationsCarburant()->create($validated);
+
+            // Mettre à jour le niveau de carburant
+            $carburant->decrement('niveau_actuel', $validated['quantite']);
+        });
+
+        return redirect()->route('engins-lourds.show', $enginLourd)
+            ->with('success', 'Carburant ajouté avec succès.');
     }
 }

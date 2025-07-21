@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CommandeFournisseur extends Model
 {
@@ -13,33 +15,40 @@ class CommandeFournisseur extends Model
 
     protected $fillable = [
         'fournisseur_id',
-        'employer_id',
-        'vehicule_id',
-        'date'
+        'date_commande',
+        'montant_total',
+        'commentaire',
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date_commande' => 'date',
+        'montant_total' => 'decimal:2',
     ];
 
     // Relationships
-    public function fournisseur()
+    public function fournisseur(): BelongsTo
     {
         return $this->belongsTo(Fournisseur::class);
     }
 
-    public function employer()
+    public function lignesCommandes(): HasMany
     {
-        return $this->belongsTo(Employer::class);
+        return $this->hasMany(LigneCommandeFournisseur::class, 'commande_id');
     }
 
-    public function vehicule()
+    // Helper methods
+    public function calculerMontantTotal(): float
     {
-        return $this->belongsTo(Vehicule::class);
+        return $this->lignesCommandes()->sum('montant_total');
     }
 
-    public function lines()
+    public function getNombreProduits(): int
     {
-        return $this->hasMany(LineCommandeFournisseur::class);
+        return $this->lignesCommandes()->count();
+    }
+
+    public function getQuantiteTotale(): float
+    {
+        return $this->lignesCommandes()->sum('quantite');
     }
 }

@@ -4,35 +4,66 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Salaire extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $fillable = [
-        'employer_id',
+        'employee_id',
         'type',
-        'prix',
-        'produit_id'
+        'montant',
+        'produit_id',
     ];
 
     protected $casts = [
-        'prix' => 'decimal:2',
+        'montant' => 'decimal:2',
     ];
 
     // Relationships
-    public function employer()
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(Employer::class);
+        return $this->belongsTo(Employee::class);
     }
 
-    public function produit()
+    public function produit(): BelongsTo
     {
         return $this->belongsTo(Produit::class);
     }
 
-    public function rapports()
+    public function historiqueTravail(): HasMany
     {
-        return $this->hasMany(RapportSalaire::class);
+        return $this->hasMany(HistoriqueTravail::class);
+    }
+
+    public function transactions(): MorphMany
+    {
+        return $this->morphMany(Transaction::class, 'reference');
+    }
+
+    // Scopes
+    public function scopeMensuel($query)
+    {
+        return $query->where('type', 'mensuel');
+    }
+
+    public function scopeJournalier($query)
+    {
+        return $query->where('type', 'journalier');
+    }
+
+    public function scopeHoraire($query)
+    {
+        return $query->where('type', 'horaire');
+    }
+
+    public function scopeParProduit($query)
+    {
+        return $query->where('type', 'par_produit');
     }
 }

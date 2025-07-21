@@ -4,52 +4,73 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Vehicule extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'nom',
         'matricule',
         'marque',
         'modele',
-        'type',
-        'capacite',
         'annee',
-        'kilometrage',
-        'carburant_type',
-        'numero_chassis',
-        'numero_moteur',
-        'date_assurance',
+        'type_vehicule',
+        'capacite',
         'statut',
-        'employer_id'
+        'date_acquisition',
+        'prix_acquisition',
+        'chauffeur_id',
     ];
 
     protected $casts = [
         'annee' => 'integer',
-        'kilometrage' => 'integer',
-        'date_assurance' => 'date',
+        'capacite' => 'decimal:2',
+        'date_acquisition' => 'date',
+        'prix_acquisition' => 'decimal:2',
     ];
 
     // Relationships
-    public function employer()
+    public function chauffeur(): BelongsTo
     {
-        return $this->belongsTo(Employer::class);
+        return $this->belongsTo(Employee::class, 'chauffeur_id');
     }
 
-    public function commandesFournisseurs()
+    public function commandesClients(): HasMany
     {
-        return $this->hasMany(CommandeFournisseur::class);
+        return $this->hasMany(CommandeClient::class);
     }
 
-    public function livraisons()
+    public function lignesCommandesClients(): HasMany
     {
-        return $this->hasMany(Livraison::class);
+        return $this->hasMany(LigneCommandeClient::class);
     }
 
-    public function rapportsDepenses()
+    public function utilisationsCarburant(): MorphMany
     {
-        return $this->hasMany(RapportDepenseVehicule::class);
+        return $this->morphMany(UtilisationCarburant::class, 'machine');
+    }
+
+    public function depensesMachines(): MorphMany
+    {
+        return $this->morphMany(DepenseMachine::class, 'machine');
+    }
+
+    // Scopes
+    public function scopeActif($query)
+    {
+        return $query->where('statut', 'actif');
+    }
+
+    public function scopeEnMaintenance($query)
+    {
+        return $query->where('statut', 'en_maintenance');
+    }
+
+    public function scopeHorsService($query)
+    {
+        return $query->where('statut', 'hors_service');
     }
 }

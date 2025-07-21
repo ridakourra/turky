@@ -1,8 +1,10 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Produit extends Model
 {
@@ -10,38 +12,45 @@ class Produit extends Model
 
     protected $fillable = [
         'nom',
-        'photo',
-        'unite',
-        'prix'
+        'image',
+        'unite_mesure',
+        'prix_unitaire',
+        'description',
     ];
 
     protected $casts = [
-        'prix' => 'decimal:2',
+        'prix_unitaire' => 'decimal:2',
     ];
 
     // Relationships
-    public function stocks()
+    public function stocks(): HasMany
     {
         return $this->hasMany(Stock::class);
     }
 
-    public function salaires()
+    public function salaires(): HasMany
     {
         return $this->hasMany(Salaire::class);
     }
 
-    public function rapportsStocks()
+    public function lignesCommandesFournisseurs(): HasMany
     {
-        return $this->hasMany(RapportStock::class);
+        return $this->hasMany(LigneCommandeFournisseur::class);
     }
 
-    public function linesCommandesFournisseurs()
+    // Helper methods
+    public function getQuantiteTotaleStock(): int
     {
-        return $this->hasMany(LineCommandeFournisseur::class);
+        return $this->stocks()->sum('quantite_totale');
     }
 
-    public function linesCommandes()
+    public function getQuantiteVendueStock(): int
     {
-        return $this->hasMany(LineCommande::class);
+        return $this->stocks()->sum('quantite_vendue');
+    }
+
+    public function getQuantiteDisponibleStock(): int
+    {
+        return $this->getQuantiteTotaleStock() - $this->getQuantiteVendueStock();
     }
 }

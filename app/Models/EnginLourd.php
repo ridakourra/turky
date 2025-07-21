@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class EnginLourd extends Model
 {
@@ -12,36 +14,56 @@ class EnginLourd extends Model
     protected $table = 'engins_lourds';
 
     protected $fillable = [
-        'nom',
         'reference',
-        'type',
         'marque',
         'modele',
+        'type_engin',
         'capacite',
-        'annee',
-        'numero_serie',
-        'numero_moteur',
-        'location_par_heure',
-        'carburant_type',
-        'date_assurance',
         'statut',
-        'employer_id'
+        'date_acquisition',
+        'prix_acquisition',
     ];
 
     protected $casts = [
-        'annee' => 'integer',
-        'location_par_heure' => 'decimal:2',
-        'date_assurance' => 'date',
+        'capacite' => 'decimal:2',
+        'date_acquisition' => 'date',
+        'prix_acquisition' => 'decimal:2',
     ];
 
     // Relationships
-    public function employer()
+    public function locationsEnginsLourds(): HasMany
     {
-        return $this->belongsTo(Employer::class);
+        return $this->hasMany(LocationEnginLourd::class, 'engin_id');
     }
 
-    public function rapportsLocation()
+    public function utilisationsCarburant(): MorphMany
     {
-        return $this->hasMany(RapportLocationEnginLourd::class);
+        return $this->morphMany(UtilisationCarburant::class, 'machine');
+    }
+
+    public function depensesMachines(): MorphMany
+    {
+        return $this->morphMany(DepenseMachine::class, 'machine');
+    }
+
+    public function transactions(): MorphMany
+    {
+        return $this->morphMany(Transaction::class, 'reference');
+    }
+
+    // Scopes
+    public function scopeActif($query)
+    {
+        return $query->where('statut', 'actif');
+    }
+
+    public function scopeEnMaintenance($query)
+    {
+        return $query->where('statut', 'en_maintenance');
+    }
+
+    public function scopeHorsService($query)
+    {
+        return $query->where('statut', 'hors_service');
     }
 }

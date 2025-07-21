@@ -1,575 +1,535 @@
-import React, { useState } from "react";
-import { Head, Link, router } from "@inertiajs/react";
-import AdminLayout from "@/Layouts/Layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-    Construction,
-    ArrowLeft,
-    Edit,
-    Calendar,
-    User,
-    Fuel,
-    Gauge,
-    AlertTriangle,
-    MapPin,
-    Clock,
-    DollarSign,
-    FileText,
-    Truck,
-    Settings,
-} from "lucide-react";
+import React, { useState } from 'react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import AdminLayout from '@/Layouts/AdminLayout';
+import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
+import { Textarea } from '@/Components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
+import { ArrowLeft, Edit, Plus, DollarSign, Fuel, Calendar, User, MapPin, Wrench, TrendingUp, Activity } from 'lucide-react';
 
-const Show = ({ enginLourd }) => {
-    const getStatusBadge = (status) => {
-        const statusConfig = {
-            available: {
-                label: "Disponible",
-                className: "bg-green-100 text-green-800",
-            },
-            in_use: {
-                label: "En utilisation",
-                className: "bg-blue-100 text-blue-800",
-            },
-            maintenance: {
-                label: "En maintenance",
-                className: "bg-yellow-100 text-yellow-800",
-            },
-            broken: { label: "En panne", className: "bg-red-100 text-red-800" },
+export default function Show({ enginLourd, clients, carburant, statistiques }) {
+    const [depenseDialog, setDepenseDialog] = useState(false);
+    const [carburantDialog, setCarburantDialog] = useState(false);
+
+    const { data: depenseData, setData: setDepenseData, post: postDepense, processing: processingDepense, errors: depenseErrors, reset: resetDepense } = useForm({
+        type_depense: '',
+        montant: '',
+        date_depense: new Date().toISOString().split('T')[0],
+        description: '',
+        facture_reference: ''
+    });
+
+    const { data: carburantData, setData: setCarburantData, post: postCarburant, processing: processingCarburant, errors: carburantErrors, reset: resetCarburant } = useForm({
+        quantite: '',
+        date_utilisation: new Date().toISOString().split('T')[0],
+        commentaire: ''
+    });
+
+    const handleDepenseSubmit = (e) => {
+        e.preventDefault();
+        postDepense(route('engins-lourds.add-depense', enginLourd.id), {
+            onSuccess: () => {
+                setDepenseDialog(false);
+                resetDepense();
+            }
+        });
+    };
+
+    const handleCarburantSubmit = (e) => {
+        e.preventDefault();
+        postCarburant(route('engins-lourds.add-carburant', enginLourd.id), {
+            onSuccess: () => {
+                setCarburantDialog(false);
+                resetCarburant();
+            }
+        });
+    };
+
+    const getStatutBadge = (statut) => {
+        const variants = {
+            'actif': 'bg-green-100 text-green-800',
+            'en_maintenance': 'bg-yellow-100 text-yellow-800',
+            'hors_service': 'bg-red-100 text-red-800'
         };
-
-        const config = statusConfig[status] || statusConfig.available;
-        return <Badge className={config.className}>{config.label}</Badge>;
+        return variants[statut] || 'bg-gray-100 text-gray-800';
     };
 
-    // Check insurance status
-    const isInsuranceExpired = () => {
-        if (!enginLourd.date_assurance) return false;
-        const insuranceDate = new Date(enginLourd.date_assurance);
-        const today = new Date();
-        return insuranceDate < today;
+    const getStatutLabel = (statut) => {
+        const labels = {
+            'actif': 'Actif',
+            'en_maintenance': 'En maintenance',
+            'hors_service': 'Hors service'
+        };
+        return labels[statut] || statut;
     };
 
-    const isInsuranceExpiringSoon = () => {
-        if (!enginLourd.date_assurance) return false;
-        const insuranceDate = new Date(enginLourd.date_assurance);
-        const today = new Date();
-        const diffTime = insuranceDate - today;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays <= 30 && diffDays >= 0;
+    const getTypeEnginLabel = (type) => {
+        const labels = {
+            'pelleteuse': 'Pelleteuse',
+            'bulldozer': 'Bulldozer',
+            'grue': 'Grue',
+            'autre': 'Autre'
+        };
+        return labels[type] || type;
     };
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat("fr-FR", {
-            style: "currency",
-            currency: "MAD",
-        }).format(amount);
-    };
-
-    const formatDate = (date) => {
-        if (!date) return "-";
-        return new Date(date).toLocaleDateString("fr-FR");
+    const getTypeDepenseLabel = (type) => {
+        const labels = {
+            'carburant': 'Carburant',
+            'maintenance': 'Maintenance',
+            'reparation': 'Réparation',
+            'assurance': 'Assurance',
+            'autre': 'Autre'
+        };
+        return labels[type] || type;
     };
 
     return (
-        <AdminLayout title={`Engin Lourd - ${enginLourd.nom}`}>
-            <Head title={`Engin Lourd - ${enginLourd.nom}`} />
+        <AdminLayout>
+            <Head title={`Engin ${enginLourd.reference}`} />
 
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            <Construction className="w-6 h-6 text-yellow-600" />
-                            {enginLourd.nom}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                        <Activity className="h-6 w-6 text-yellow-600" />
+                        <h1 className="text-2xl font-bold text-gray-900">
+                            Engin {enginLourd.reference}
                         </h1>
-                        <p className="text-gray-600 mt-1 flex items-center gap-2">
-                            <span>Référence: {enginLourd.reference}</span>
-                            {getStatusBadge(enginLourd.statut)}
-                        </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <Button variant="outline" asChild>
-                            <Link href={route("engins-lourds.index")}>
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                Retour à la liste
-                            </Link>
-                        </Button>
-                        <Button asChild>
-                            <Link
-                                href={route(
-                                    "engins-lourds.edit",
-                                    enginLourd.id
-                                )}
-                            >
-                                <Edit className="w-4 h-4 mr-2" />
+                    <div className="flex space-x-2">
+                        <Link href={route('engins-lourds.edit', enginLourd.id)}>
+                            <Button variant="outline">
+                                <Edit className="h-4 w-4 mr-2" />
                                 Modifier
-                            </Link>
-                        </Button>
+                            </Button>
+                        </Link>
+                        <Link href={route('engins-lourds.index')}>
+                            <Button variant="outline">
+                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                Retour
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 
-                {/* Alerts */}
-                {isInsuranceExpired() && (
-                    <Alert className="border-red-200 bg-red-50">
-                        <AlertTriangle className="w-4 h-4 text-red-600" />
-                        <AlertDescription className="text-red-800">
-                            <strong>Assurance expirée !</strong> L'assurance de
-                            cet engin a expiré le{" "}
-                            {formatDate(enginLourd.date_assurance)}.
-                        </AlertDescription>
-                    </Alert>
-                )}
-
-                {isInsuranceExpiringSoon() && !isInsuranceExpired() && (
-                    <Alert className="border-yellow-200 bg-yellow-50">
-                        <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                        <AlertDescription className="text-yellow-800">
-                            <strong>Attention !</strong> L'assurance de cet
-                            engin expire bientôt le{" "}
-                            {formatDate(enginLourd.date_assurance)}.
-                        </AlertDescription>
-                    </Alert>
-                )}
-
-                <Tabs defaultValue="details" className="space-y-6">
-                    <TabsList>
-                        <TabsTrigger value="details">
-                            Détails de l'Engin
-                        </TabsTrigger>
-                        <TabsTrigger value="rentals">
-                            Historique des Locations
-                        </TabsTrigger>
-                        <TabsTrigger value="maintenance">
-                            Maintenance
-                        </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="details" className="space-y-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Informations Générales */}
-                            <div className="lg:col-span-2">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Construction className="w-5 h-5" />
-                                            Informations Générales
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div>
-                                                <h4 className="font-semibold text-gray-900 mb-3">
-                                                    Identification
-                                                </h4>
-                                                <div className="space-y-2">
-                                                    <div>
-                                                        <span className="text-sm text-gray-500">
-                                                            Nom:
-                                                        </span>
-                                                        <p className="font-medium">
-                                                            {enginLourd.nom}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm text-gray-500">
-                                                            Référence:
-                                                        </span>
-                                                        <p className="font-medium">
-                                                            {
-                                                                enginLourd.reference
-                                                            }
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm text-gray-500">
-                                                            Type:
-                                                        </span>
-                                                        <p className="font-medium">
-                                                            {enginLourd.type ||
-                                                                "-"}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm text-gray-500">
-                                                            Marque:
-                                                        </span>
-                                                        <p className="font-medium">
-                                                            {enginLourd.marque ||
-                                                                "-"}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm text-gray-500">
-                                                            Modèle:
-                                                        </span>
-                                                        <p className="font-medium">
-                                                            {enginLourd.modele ||
-                                                                "-"}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <h4 className="font-semibold text-gray-900 mb-3">
-                                                    Spécifications
-                                                </h4>
-                                                <div className="space-y-2">
-                                                    <div>
-                                                        <span className="text-sm text-gray-500">
-                                                            Capacité:
-                                                        </span>
-                                                        <p className="font-medium">
-                                                            {enginLourd.capacite
-                                                                ? `${enginLourd.capacite} T`
-                                                                : "-"}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm text-gray-500">
-                                                            Année:
-                                                        </span>
-                                                        <p className="font-medium">
-                                                            {enginLourd.annee ||
-                                                                "-"}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm text-gray-500">
-                                                            Prix/Heure:
-                                                        </span>
-                                                        <p className="font-medium">
-                                                            {enginLourd.location_par_heure
-                                                                ? formatCurrency(
-                                                                      enginLourd.location_par_heure
-                                                                  ) + "/h"
-                                                                : "-"}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm text-gray-500">
-                                                            Type de carburant:
-                                                        </span>
-                                                        <p className="font-medium">
-                                                            {enginLourd.carburant_type ||
-                                                                "-"}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-sm text-gray-500">
-                                                            Statut:
-                                                        </span>
-                                                        <div className="mt-1">
-                                                            {getStatusBadge(
-                                                                enginLourd.statut
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Détails Techniques */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Settings className="w-5 h-5" />
-                                            Détails Techniques
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div>
-                                                <span className="text-sm text-gray-500">
-                                                    Numéro de série:
-                                                </span>
-                                                <p className="font-medium">
-                                                    {enginLourd.numero_serie ||
-                                                        "-"}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <span className="text-sm text-gray-500">
-                                                    Numéro de moteur:
-                                                </span>
-                                                <p className="font-medium">
-                                                    {enginLourd.numero_moteur ||
-                                                        "-"}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <span className="text-sm text-gray-500">
-                                                    Date d'assurance:
-                                                </span>
-                                                <p
-                                                    className={`font-medium ${
-                                                        isInsuranceExpired()
-                                                            ? "text-red-600"
-                                                            : isInsuranceExpiringSoon()
-                                                            ? "text-yellow-600"
-                                                            : ""
-                                                    }`}
-                                                >
-                                                    {formatDate(
-                                                        enginLourd.date_assurance
-                                                    )}
-                                                    {isInsuranceExpired() && (
-                                                        <span className="ml-2 text-red-500">
-                                                            (Expirée)
-                                                        </span>
-                                                    )}
-                                                    {isInsuranceExpiringSoon() &&
-                                                        !isInsuranceExpired() && (
-                                                            <span className="ml-2 text-yellow-500">
-                                                                (Expire bientôt)
-                                                            </span>
-                                                        )}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                {/* Informations générales */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="flex items-center space-x-2">
+                                <Activity className="h-5 w-5 text-yellow-600" />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Référence</p>
+                                    <p className="text-lg font-bold">{enginLourd.reference}</p>
+                                </div>
                             </div>
+                        </CardContent>
+                    </Card>
 
-                            {/* Affectation et Statistiques */}
-                            <div>
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <User className="w-5 h-5" />
-                                            Affectation
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-4">
-                                            <div>
-                                                <span className="text-sm text-gray-500">
-                                                    Opérateur assigné:
-                                                </span>
-                                                {enginLourd.employer ? (
-                                                    <div className="mt-1">
-                                                        <Link
-                                                            href={route(
-                                                                "employers.show",
-                                                                enginLourd
-                                                                    .employer.id
-                                                            )}
-                                                            className="font-medium text-blue-600 hover:text-blue-800"
-                                                        >
-                                                            {
-                                                                enginLourd
-                                                                    .employer
-                                                                    .nom
-                                                            }
-                                                        </Link>
-                                                    </div>
-                                                ) : (
-                                                    <p className="font-medium text-gray-500">
-                                                        Aucun opérateur assigné
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Statistiques rapides */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <FileText className="w-5 h-5" />
-                                            Statistiques
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-4">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-gray-500">
-                                                    Locations totales:
-                                                </span>
-                                                <span className="font-semibold">
-                                                    {enginLourd
-                                                        .rapports_location
-                                                        ?.length || 0}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-gray-500">
-                                                    Revenus générés:
-                                                </span>
-                                                <span className="font-semibold text-green-600">
-                                                    {formatCurrency(
-                                                        enginLourd.rapports_location?.reduce(
-                                                            (sum, rapport) =>
-                                                                sum +
-                                                                (parseFloat(
-                                                                    rapport.montant_totale
-                                                                ) || 0),
-                                                            0
-                                                        ) || 0
-                                                    )}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-gray-500">
-                                                    Dernière location:
-                                                </span>
-                                                <span className="font-semibold">
-                                                    {enginLourd
-                                                        .rapports_location
-                                                        ?.length > 0
-                                                        ? formatDate(
-                                                              enginLourd
-                                                                  .rapports_location[0]
-                                                                  .date_operation
-                                                          )
-                                                        : "Jamais"}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="flex items-center space-x-2">
+                                <Wrench className="h-5 w-5 text-blue-600" />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Type</p>
+                                    <p className="text-lg font-bold">{getTypeEnginLabel(enginLourd.type_engin)}</p>
+                                </div>
                             </div>
-                        </div>
-                    </TabsContent>
+                        </CardContent>
+                    </Card>
 
-                    <TabsContent value="rentals" className="space-y-6">
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="flex items-center space-x-2">
+                                <TrendingUp className="h-5 w-5 text-green-600" />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Statut</p>
+                                    <Badge className={getStatutBadge(enginLourd.statut)}>
+                                        {getStatutLabel(enginLourd.statut)}
+                                    </Badge>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="flex items-center space-x-2">
+                                <DollarSign className="h-5 w-5 text-purple-600" />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Capacité</p>
+                                    <p className="text-lg font-bold">{enginLourd.capacite ? `${enginLourd.capacite} T` : 'N/A'}</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Statistiques */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="text-center">
+                                <p className="text-2xl font-bold text-blue-600">{statistiques?.total_locations || 0}</p>
+                                <p className="text-sm text-gray-600">Locations totales</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="text-center">
+                                <p className="text-2xl font-bold text-green-600">{statistiques?.revenus_locations?.toFixed(2) || '0.00'} MAD</p>
+                                <p className="text-sm text-gray-600">Revenus locations</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="text-center">
+                                <p className="text-2xl font-bold text-red-600">{statistiques?.total_depenses?.toFixed(2) || '0.00'} MAD</p>
+                                <p className="text-sm text-gray-600">Dépenses totales</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="text-center">
+                                <p className="text-2xl font-bold text-yellow-600">{statistiques?.total_carburant?.toFixed(2) || '0.00'} L</p>
+                                <p className="text-sm text-gray-600">Carburant utilisé</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Détails et Actions */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Informations détaillées */}
+                    <div className="lg:col-span-2">
                         <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Clock className="w-5 h-5" />
-                                    Historique des Locations
-                                </CardTitle>
+                                <CardTitle>Informations détaillées</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {enginLourd.rapports_location &&
-                                enginLourd.rapports_location.length > 0 ? (
-                                    <div className="overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Date</TableHead>
-                                                    <TableHead>
-                                                        Client
-                                                    </TableHead>
-                                                    <TableHead>
-                                                        Quantité (heures)
-                                                    </TableHead>
-                                                    <TableHead>
-                                                        Prix/Heure
-                                                    </TableHead>
-                                                    <TableHead>
-                                                        Montant Total
-                                                    </TableHead>
-                                                    <TableHead>
-                                                        Remarques
-                                                    </TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {enginLourd.rapports_location.map(
-                                                    (rapport) => (
-                                                        <TableRow
-                                                            key={rapport.id}
-                                                        >
-                                                            <TableCell>
-                                                                {formatDate(
-                                                                    rapport.date_operation
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {rapport.client ? (
-                                                                    <Link
-                                                                        href={route(
-                                                                            "clients.show",
-                                                                            rapport
-                                                                                .client
-                                                                                .id
-                                                                        )}
-                                                                        className="text-blue-600 hover:text-blue-800"
-                                                                    >
-                                                                        {
-                                                                            rapport
-                                                                                .client
-                                                                                .nom
-                                                                        }
-                                                                    </Link>
-                                                                ) : (
-                                                                    "-"
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {
-                                                                    rapport.quantite
-                                                                }
-                                                                h
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {formatCurrency(
-                                                                    rapport.prix_par_heure
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="font-semibold text-green-600">
-                                                                {formatCurrency(
-                                                                    rapport.montant_totale
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="max-w-xs truncate">
-                                                                {rapport.remarques ||
-                                                                    "-"}
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    )
-                                                )}
-                                            </TableBody>
-                                        </Table>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-600">Marque</Label>
+                                        <p className="text-sm">{enginLourd.marque}</p>
                                     </div>
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                        <p className="text-gray-500">
-                                            Aucune location enregistrée pour cet
-                                            engin
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-600">Modèle</Label>
+                                        <p className="text-sm">{enginLourd.modele || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-600">Date d'acquisition</Label>
+                                        <p className="text-sm">
+                                            {enginLourd.date_acquisition ? new Date(enginLourd.date_acquisition).toLocaleDateString('fr-FR') : 'N/A'}
                                         </p>
                                     </div>
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-600">Prix d'acquisition</Label>
+                                        <p className="text-sm">
+                                            {enginLourd.prix_acquisition ? `${parseFloat(enginLourd.prix_acquisition).toFixed(2)} MAD` : 'N/A'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Actions rapides */}
+                    <div>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Actions rapides</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <Dialog open={depenseDialog} onOpenChange={setDepenseDialog}>
+                                    <DialogTrigger asChild>
+                                        <Button className="w-full bg-red-600 hover:bg-red-700">
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Ajouter une dépense
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Ajouter une dépense</DialogTitle>
+                                            <DialogDescription>
+                                                Enregistrer une nouvelle dépense pour cet engin lourd.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <form onSubmit={handleDepenseSubmit} className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="type_depense">Type de dépense *</Label>
+                                                <Select value={depenseData.type_depense} onValueChange={(value) => setDepenseData('type_depense', value)}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Sélectionner le type" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="carburant">Carburant</SelectItem>
+                                                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                                                        <SelectItem value="reparation">Réparation</SelectItem>
+                                                        <SelectItem value="assurance">Assurance</SelectItem>
+                                                        <SelectItem value="autre">Autre</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                {depenseErrors.type_depense && (
+                                                    <p className="text-sm text-red-600">{depenseErrors.type_depense}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="montant">Montant (MAD) *</Label>
+                                                <Input
+                                                    id="montant"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={depenseData.montant}
+                                                    onChange={(e) => setDepenseData('montant', e.target.value)}
+                                                    placeholder="0.00"
+                                                />
+                                                {depenseErrors.montant && (
+                                                    <p className="text-sm text-red-600">{depenseErrors.montant}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="date_depense">Date de dépense *</Label>
+                                                <Input
+                                                    id="date_depense"
+                                                    type="date"
+                                                    value={depenseData.date_depense}
+                                                    onChange={(e) => setDepenseData('date_depense', e.target.value)}
+                                                />
+                                                {depenseErrors.date_depense && (
+                                                    <p className="text-sm text-red-600">{depenseErrors.date_depense}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="description">Description</Label>
+                                                <Textarea
+                                                    id="description"
+                                                    value={depenseData.description}
+                                                    onChange={(e) => setDepenseData('description', e.target.value)}
+                                                    placeholder="Description de la dépense..."
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="facture_reference">Référence facture</Label>
+                                                <Input
+                                                    id="facture_reference"
+                                                    type="text"
+                                                    value={depenseData.facture_reference}
+                                                    onChange={(e) => setDepenseData('facture_reference', e.target.value)}
+                                                    placeholder="Numéro de facture"
+                                                />
+                                            </div>
+                                            <DialogFooter>
+                                                <Button type="button" variant="outline" onClick={() => setDepenseDialog(false)}>
+                                                    Annuler
+                                                </Button>
+                                                <Button type="submit" disabled={processingDepense} className="bg-red-600 hover:bg-red-700">
+                                                    {processingDepense ? 'Ajout...' : 'Ajouter'}
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+
+                                <Dialog open={carburantDialog} onOpenChange={setCarburantDialog}>
+                                    <DialogTrigger asChild>
+                                        <Button className="w-full bg-yellow-600 hover:bg-yellow-700">
+                                            <Fuel className="h-4 w-4 mr-2" />
+                                            Ajouter du carburant
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Ajouter du carburant</DialogTitle>
+                                            <DialogDescription>
+                                                Enregistrer l'utilisation de carburant pour cet engin lourd.
+                                                <br />
+                                                <span className="text-sm text-gray-600">
+                                                    Niveau actuel: {carburant?.niveau_actuel || 0} L / {carburant?.capacite_maximale || 0} L
+                                                </span>
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <form onSubmit={handleCarburantSubmit} className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="quantite">Quantité (litres) *</Label>
+                                                <Input
+                                                    id="quantite"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    max={carburant?.niveau_actuel || 0}
+                                                    value={carburantData.quantite}
+                                                    onChange={(e) => setCarburantData('quantite', e.target.value)}
+                                                    placeholder="0.00"
+                                                />
+                                                {carburantErrors.quantite && (
+                                                    <p className="text-sm text-red-600">{carburantErrors.quantite}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="date_utilisation">Date d'utilisation *</Label>
+                                                <Input
+                                                    id="date_utilisation"
+                                                    type="date"
+                                                    value={carburantData.date_utilisation}
+                                                    onChange={(e) => setCarburantData('date_utilisation', e.target.value)}
+                                                />
+                                                {carburantErrors.date_utilisation && (
+                                                    <p className="text-sm text-red-600">{carburantErrors.date_utilisation}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="commentaire">Commentaire</Label>
+                                                <Textarea
+                                                    id="commentaire"
+                                                    value={carburantData.commentaire}
+                                                    onChange={(e) => setCarburantData('commentaire', e.target.value)}
+                                                    placeholder="Commentaire sur l'utilisation..."
+                                                />
+                                            </div>
+                                            <DialogFooter>
+                                                <Button type="button" variant="outline" onClick={() => setCarburantDialog(false)}>
+                                                    Annuler
+                                                </Button>
+                                                <Button type="submit" disabled={processingCarburant} className="bg-yellow-600 hover:bg-yellow-700">
+                                                    {processingCarburant ? 'Ajout...' : 'Ajouter'}
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                {/* Historique */}
+                <Tabs defaultValue="locations" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="locations">Locations</TabsTrigger>
+                        <TabsTrigger value="depenses">Dépenses</TabsTrigger>
+                        <TabsTrigger value="carburant">Carburant</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="locations">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Historique des locations</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {enginLourd.locations_engins_lourds?.length > 0 ? (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Client</TableHead>
+                                                <TableHead>Date début</TableHead>
+                                                <TableHead>Date fin</TableHead>
+                                                <TableHead>Prix</TableHead>
+                                                <TableHead>Statut</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {enginLourd.locations_engins_lourds.map((location) => (
+                                                <TableRow key={location.id}>
+                                                    <TableCell>{location.client?.nom_complet}</TableCell>
+                                                    <TableCell>{new Date(location.date_debut).toLocaleDateString('fr-FR')}</TableCell>
+                                                    <TableCell>{location.date_fin ? new Date(location.date_fin).toLocaleDateString('fr-FR') : 'En cours'}</TableCell>
+                                                    <TableCell>{parseFloat(location.prix_location).toFixed(2)} MAD</TableCell>
+                                                    <TableCell>
+                                                        <Badge className={location.statut === 'en_cours' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                                                            {location.statut === 'en_cours' ? 'En cours' : location.statut}
+                                                        </Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                ) : (
+                                    <p className="text-center text-gray-500 py-4">Aucune location enregistrée</p>
                                 )}
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="maintenance" className="space-y-6">
+                    <TabsContent value="depenses">
                         <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Settings className="w-5 h-5" />
-                                    Maintenance et Entretien
-                                </CardTitle>
+                                <CardTitle>Historique des dépenses</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-center py-8">
-                                    <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                    <p className="text-gray-500">
-                                        Section en cours de développement
-                                    </p>
-                                    <p className="text-sm text-gray-400 mt-2">
-                                        L'historique de maintenance sera
-                                        disponible prochainement
-                                    </p>
-                                </div>
+                                {enginLourd.depenses_machines?.length > 0 ? (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Type</TableHead>
+                                                <TableHead>Montant</TableHead>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Description</TableHead>
+                                                <TableHead>Facture</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {enginLourd.depenses_machines.map((depense) => (
+                                                <TableRow key={depense.id}>
+                                                    <TableCell>
+                                                        <Badge>{getTypeDepenseLabel(depense.type_depense)}</Badge>
+                                                    </TableCell>
+                                                    <TableCell>{parseFloat(depense.montant).toFixed(2)} MAD</TableCell>
+                                                    <TableCell>{new Date(depense.date_depense).toLocaleDateString('fr-FR')}</TableCell>
+                                                    <TableCell>{depense.description || '-'}</TableCell>
+                                                    <TableCell>{depense.facture_reference || '-'}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                ) : (
+                                    <p className="text-center text-gray-500 py-4">Aucune dépense enregistrée</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="carburant">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Historique du carburant</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {enginLourd.utilisations_carburant?.length > 0 ? (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Quantité</TableHead>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Commentaire</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {enginLourd.utilisations_carburant.map((utilisation) => (
+                                                <TableRow key={utilisation.id}>
+                                                    <TableCell>{parseFloat(utilisation.quantite).toFixed(2)} L</TableCell>
+                                                    <TableCell>{new Date(utilisation.date_utilisation).toLocaleDateString('fr-FR')}</TableCell>
+                                                    <TableCell>{utilisation.commentaire || '-'}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                ) : (
+                                    <p className="text-center text-gray-500 py-4">Aucune utilisation de carburant enregistrée</p>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -577,6 +537,4 @@ const Show = ({ enginLourd }) => {
             </div>
         </AdminLayout>
     );
-};
-
-export default Show;
+}

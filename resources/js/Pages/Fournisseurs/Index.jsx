@@ -1,627 +1,447 @@
-import React, { useState } from "react";
-import { Head, Link, router } from "@inertiajs/react";
-import AdminLayout from "@/Layouts/Layout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import React, { useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import AuthenticatedLayout from '@/Layouts/AdminLayout';
+import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
+import { Badge } from '@/Components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/Components/ui/collapsible';
 import {
     Plus,
     Search,
     Filter,
-    Download,
-    Edit,
-    Trash2,
-    Eye,
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
-    Package,
-    ShoppingCart,
-    Users,
-} from "lucide-react";
+    Eye,
+    Edit,
+    Trash2,
+    Building2,
+    User,
+    Phone,
+    Mail,
+    MapPin,
+    FileText,
+    ChevronDown,
+    ChevronUp
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
-export default function Index({ fournisseurs, filters }) {
-    const [selectedIds, setSelectedIds] = useState([]);
-    const [tab, setTab] = useState("basic");
-    const [basicFilters, setBasicFilters] = useState({
-        search: filters.search || "",
-    });
+export default function FournisseursIndex({ fournisseurs, filters, sort, direction }) {
+    const { flash } = usePage().props;
+    const [search, setSearch] = useState(filters?.search || '');
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [advancedFilters, setAdvancedFilters] = useState({
-        nom: filters.nom || "",
-        ice_ou_cin: filters.ice_ou_cin || "",
-        adresse: filters.adresse || "",
+        nom_societe: filters?.nom_societe || '',
+        contact_nom: filters?.contact_nom || '',
+        telephone: filters?.telephone || '',
+        email: filters?.email || '',
+        ice: filters?.ice || ''
     });
-    const [deleteDialog, setDeleteDialog] = useState({
-        open: false,
-        fournisseur: null,
-    });
-    const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
+    const [deleteDialog, setDeleteDialog] = useState({ open: false, fournisseur: null });
 
-    const handleSearch = (e) => {
-        const value = e.target.value;
-        setBasicFilters({ ...basicFilters, search: value });
-        router.get(
-            "/fournisseurs",
-            { ...filters, search: value, page: 1 },
-            { preserveState: true, replace: true }
-        );
-    };
-
-    const handleFilter = (key, value) => {
-        if (tab === "basic") {
-            router.get(
-                "/fournisseurs",
-                { ...filters, [key]: value, page: 1 },
-                { preserveState: true, replace: true }
-            );
-        } else {
-            setAdvancedFilters({ ...advancedFilters, [key]: value });
-        }
-    };
-
-    const applyAdvancedFilters = () => {
-        router.get(
-            "/fournisseurs",
-            { ...filters, ...advancedFilters, page: 1 },
-            { preserveState: true, replace: true }
-        );
-    };
-
-    const clearFilters = () => {
-        setBasicFilters({ search: "" });
-        setAdvancedFilters({
-            nom: "",
-            ice_ou_cin: "",
-            adresse: "",
+    // Fonction pour effectuer la recherche
+    const handleSearch = () => {
+        router.get(route('fournisseurs.index'), {
+            search,
+            ...advancedFilters,
+            sort,
+            direction
+        }, {
+            preserveState: true,
+            replace: true
         });
-        router.get("/fournisseurs");
     };
 
+    // Fonction pour réinitialiser les filtres
+    const resetFilters = () => {
+        setSearch('');
+        setAdvancedFilters({
+            nom_societe: '',
+            contact_nom: '',
+            telephone: '',
+            email: '',
+            ice: ''
+        });
+        router.get(route('fournisseurs.index'), { sort, direction }, {
+            preserveState: true,
+            replace: true
+        });
+    };
+
+    // Fonction pour trier
     const handleSort = (field) => {
-        const direction =
-            filters.sort === field && filters.direction === "asc"
-                ? "desc"
-                : "asc";
-        router.get(
-            "/fournisseurs",
-            { ...filters, sort: field, direction, page: 1 },
-            { preserveState: true, replace: true }
-        );
+        const newDirection = sort === field && direction === 'asc' ? 'desc' : 'asc';
+        router.get(route('fournisseurs.index'), {
+            search,
+            ...advancedFilters,
+            sort: field,
+            direction: newDirection
+        }, {
+            preserveState: true,
+            replace: true
+        });
     };
 
-    const getSortIcon = (field) => {
-        if (filters.sort !== field) return <ArrowUpDown className="h-4 w-4" />;
-        return filters.direction === "asc" ? (
-            <ArrowUp className="h-4 w-4" />
-        ) : (
-            <ArrowDown className="h-4 w-4" />
-        );
-    };
-
-    const handleSelectAll = (checked) => {
-        if (checked) {
-            setSelectedIds(fournisseurs.data.map((f) => f.id));
-        } else {
-            setSelectedIds([]);
-        }
-    };
-
-    const handleSelectOne = (id, checked) => {
-        if (checked) {
-            setSelectedIds([...selectedIds, id]);
-        } else {
-            setSelectedIds(
-                selectedIds.filter((selectedId) => selectedId !== id)
-            );
-        }
-    };
-
-    const handleDelete = (fournisseur) => {
-        setDeleteDialog({ open: true, fournisseur });
-    };
-
-    const confirmDelete = () => {
+    // Fonction pour supprimer un fournisseur
+    const handleDelete = () => {
         if (deleteDialog.fournisseur) {
-            router.delete(`/fournisseurs/${deleteDialog.fournisseur.id}`, {
-                onSuccess: () =>
-                    setDeleteDialog({ open: false, fournisseur: null }),
+            router.delete(route('fournisseurs.destroy', deleteDialog.fournisseur.id), {
+                onSuccess: () => {
+                    setDeleteDialog({ open: false, fournisseur: null });
+                }
             });
         }
     };
 
-    const handleBulkDelete = () => {
-        setBulkDeleteDialog(true);
+    // Fonction pour obtenir l'icône de tri
+    const getSortIcon = (field) => {
+        if (sort !== field) return <ArrowUpDown className="h-4 w-4" />;
+        return direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
     };
 
-    const confirmBulkDelete = () => {
-        if (selectedIds.length === 0) return;
-        router.delete("/fournisseurs/bulk", {
-            data: { ids: selectedIds },
-            onSuccess: () => {
-                setSelectedIds([]);
-                setBulkDeleteDialog(false);
-            },
-        });
+    // Fonction pour formater la date
+    const formatDate = (date) => {
+        return format(new Date(date), 'dd/MM/yyyy', { locale: fr });
     };
 
-    const handleExport = () => {
-        window.location.href = `/fournisseurs/export?${new URLSearchParams({
-            search: basicFilters.search,
-            ...advancedFilters,
-        })}`;
-    };
-
-    // --- Render ---
     return (
-        <AdminLayout title="Liste des Fournisseurs">
-            <Head title="Fournisseurs" />
-            <div className="space-y-6">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            <Users className="h-6 w-6 text-yellow-600" />
-                            Gestion des Fournisseurs
-                        </h1>
-                        <p className="text-gray-600 mt-1">
-                            Gérez vos fournisseurs et leurs informations
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            onClick={handleExport}
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-2"
-                        >
-                            <Download className="h-4 w-4" />
-                            Exporter
+        <AuthenticatedLayout
+            header={
+                <div className="flex justify-between items-center">
+                    <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                        Gestion des Fournisseurs
+                    </h2>
+                    <Link href={route('fournisseurs.create')}>
+                        <Button className="bg-yellow-500 hover:bg-yellow-600">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Nouveau Fournisseur
                         </Button>
-                        <Link href="/fournisseurs/create">
-                            <Button
-                                size="sm"
-                                className="bg-yellow-500 hover:bg-yellow-600 flex items-center gap-2"
-                            >
-                                <Plus className="h-4 w-4" />
-                                Nouveau Fournisseur
-                            </Button>
-                        </Link>
-                    </div>
+                    </Link>
                 </div>
+            }
+        >
+            <Head title="Fournisseurs" />
 
-                {/* Filters */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Filter className="h-5 w-5" />
-                            Filtres et Recherche
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Tabs
-                            value={tab}
-                            onValueChange={setTab}
-                            className="w-full"
-                        >
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="basic">
-                                    Filtres de Base
-                                </TabsTrigger>
-                                <TabsTrigger value="advanced">
-                                    Filtres Avancés
-                                </TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="basic" className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                        <Input
-                                            placeholder="Rechercher par nom, ICE/CIN, adresse..."
-                                            value={basicFilters.search}
-                                            onChange={handleSearch}
-                                            className="pl-10"
-                                        />
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        onClick={clearFilters}
-                                        className="w-full"
-                                    >
-                                        Effacer les filtres
-                                    </Button>
-                                </div>
-                            </TabsContent>
-                            <TabsContent value="advanced" className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">
-                                            Nom
-                                        </label>
-                                        <Input
-                                            placeholder="Filtrer par nom"
-                                            value={advancedFilters.nom}
-                                            onChange={(e) =>
-                                                handleFilter(
-                                                    "nom",
-                                                    e.target.value
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">
-                                            ICE/CIN
-                                        </label>
-                                        <Input
-                                            placeholder="Filtrer par ICE/CIN"
-                                            value={advancedFilters.ice_ou_cin}
-                                            onChange={(e) =>
-                                                handleFilter(
-                                                    "ice_ou_cin",
-                                                    e.target.value
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">
-                                            Adresse
-                                        </label>
-                                        <Input
-                                            placeholder="Filtrer par adresse"
-                                            value={advancedFilters.adresse}
-                                            onChange={(e) =>
-                                                handleFilter(
-                                                    "adresse",
-                                                    e.target.value
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex justify-end pt-4 gap-2">
-                                    <Button
-                                        onClick={applyAdvancedFilters}
-                                        className="bg-yellow-500 hover:bg-yellow-600"
-                                    >
-                                        Appliquer les filtres
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={clearFilters}
-                                    >
-                                        Réinitialiser
-                                    </Button>
-                                </div>
-                            </TabsContent>
-                        </Tabs>
-                    </CardContent>
-                </Card>
+            <div className="py-12">
+                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+                    {/* Messages flash */}
+                    {flash?.success && (
+                        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                            {flash.success}
+                        </div>
+                    )}
+                    {flash?.error && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                            {flash.error}
+                        </div>
+                    )}
 
-                {/* Bulk Actions */}
-                {selectedIds.length > 0 && (
-                    <Card className="bg-yellow-50 border-yellow-200">
-                        <CardContent className="py-3">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-yellow-800">
-                                    {selectedIds.length} élément(s)
-                                    sélectionné(s)
-                                </span>
-                                <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={handleBulkDelete}
-                                >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Supprimer la sélection
+                    {/* Filtres */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Filter className="h-5 w-5" />
+                                Filtres et Recherche
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {/* Recherche de base */}
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <Input
+                                        placeholder="Rechercher par nom, contact, téléphone, email ou ICE..."
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                    />
+                                </div>
+                                <Button onClick={handleSearch} className="bg-yellow-500 hover:bg-yellow-600">
+                                    <Search className="h-4 w-4 mr-2" />
+                                    Rechercher
+                                </Button>
+                                <Button variant="outline" onClick={resetFilters}>
+                                    Réinitialiser
                                 </Button>
                             </div>
+
+                            {/* Filtres avancés */}
+                            <Collapsible open={showAdvancedFilters} onOpenChange={setShowAdvancedFilters}>
+                                <CollapsibleTrigger asChild>
+                                    <Button variant="ghost" className="w-full justify-between">
+                                        Filtres Avancés
+                                        {showAdvancedFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                    </Button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="space-y-4 pt-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Nom Société</label>
+                                            <Input
+                                                placeholder="Filtrer par nom société"
+                                                value={advancedFilters.nom_societe}
+                                                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, nom_societe: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Contact</label>
+                                            <Input
+                                                placeholder="Filtrer par contact"
+                                                value={advancedFilters.contact_nom}
+                                                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, contact_nom: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Téléphone</label>
+                                            <Input
+                                                placeholder="Filtrer par téléphone"
+                                                value={advancedFilters.telephone}
+                                                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, telephone: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Email</label>
+                                            <Input
+                                                placeholder="Filtrer par email"
+                                                value={advancedFilters.email}
+                                                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, email: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">ICE</label>
+                                            <Input
+                                                placeholder="Filtrer par ICE"
+                                                value={advancedFilters.ice}
+                                                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, ice: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button onClick={handleSearch} className="bg-yellow-500 hover:bg-yellow-600">
+                                            Appliquer les Filtres
+                                        </Button>
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
                         </CardContent>
                     </Card>
-                )}
 
-                {/* Table */}
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle>
-                                Liste des Fournisseurs ({fournisseurs.total}{" "}
-                                fournisseurs)
-                            </CardTitle>
-                            {selectedIds.length > 0 && (
-                                <Badge variant="secondary">
-                                    {selectedIds.length} sélectionnés
-                                </Badge>
-                            )}
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="overflow-x-auto">
+                    {/* Liste des fournisseurs */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Liste des Fournisseurs</CardTitle>
+                            <CardDescription>
+                                {fournisseurs?.total || 0} fournisseur(s) trouvé(s)
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="bg-gray-50">
-                                        <TableHead className="w-12">
-                                            <Checkbox
-                                                checked={
-                                                    selectedIds.length ===
-                                                    fournisseurs.data.length
-                                                }
-                                                onCheckedChange={
-                                                    handleSelectAll
-                                                }
-                                            />
+                                    <TableRow>
+                                        <TableHead>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => handleSort('nom_societe')}
+                                                className="h-auto p-0 font-semibold"
+                                            >
+                                                Société
+                                                {getSortIcon('nom_societe')}
+                                            </Button>
                                         </TableHead>
-                                        <TableHead
-                                            className="cursor-pointer hover:bg-gray-100"
-                                            onClick={() => handleSort("nom")}
-                                        >
-                                            <div className="flex items-center gap-1">
-                                                Nom
-                                                {getSortIcon("nom")}
-                                            </div>
+                                        <TableHead>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => handleSort('contact_nom')}
+                                                className="h-auto p-0 font-semibold"
+                                            >
+                                                Contact
+                                                {getSortIcon('contact_nom')}
+                                            </Button>
                                         </TableHead>
-                                        <TableHead
-                                            className="cursor-pointer hover:bg-gray-100"
-                                            onClick={() =>
-                                                handleSort("ice_ou_cin")
-                                            }
-                                        >
-                                            <div className="flex items-center gap-1">
-                                                ICE/CIN
-                                                {getSortIcon("ice_ou_cin")}
-                                            </div>
+                                        <TableHead>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => handleSort('telephone')}
+                                                className="h-auto p-0 font-semibold"
+                                            >
+                                                Téléphone
+                                                {getSortIcon('telephone')}
+                                            </Button>
                                         </TableHead>
-                                        <TableHead>Adresse</TableHead>
-                                        <TableHead className="text-center">
-                                            Stocks
+                                        <TableHead>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => handleSort('email')}
+                                                className="h-auto p-0 font-semibold"
+                                            >
+                                                Email
+                                                {getSortIcon('email')}
+                                            </Button>
                                         </TableHead>
-                                        <TableHead className="text-center">
-                                            Commandes
+                                        <TableHead>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => handleSort('ice')}
+                                                className="h-auto p-0 font-semibold"
+                                            >
+                                                ICE
+                                                {getSortIcon('ice')}
+                                            </Button>
                                         </TableHead>
-                                        <TableHead className="text-right">
-                                            Actions
+                                        <TableHead>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => handleSort('created_at')}
+                                                className="h-auto p-0 font-semibold"
+                                            >
+                                                Créé le
+                                                {getSortIcon('created_at')}
+                                            </Button>
                                         </TableHead>
+                                        <TableHead>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {fournisseurs.data.map((fournisseur) => (
-                                        <TableRow
-                                            key={fournisseur.id}
-                                            className="hover:bg-gray-50"
-                                        >
-                                            <TableCell>
-                                                <Checkbox
-                                                    checked={selectedIds.includes(
-                                                        fournisseur.id
+                                    {fournisseurs?.data?.length > 0 ? (
+                                        fournisseurs.data.map((fournisseur) => (
+                                            <TableRow key={fournisseur.id}>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Building2 className="h-4 w-4 text-yellow-500" />
+                                                        <span className="font-medium">{fournisseur.nom_societe}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {fournisseur.contact_nom ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <User className="h-4 w-4 text-gray-500" />
+                                                            {fournisseur.contact_nom}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
                                                     )}
-                                                    onCheckedChange={(
-                                                        checked
-                                                    ) =>
-                                                        handleSelectOne(
-                                                            fournisseur.id,
-                                                            checked
-                                                        )
-                                                    }
-                                                />
-                                            </TableCell>
-                                            <TableCell className="font-medium">
-                                                {fournisseur.nom}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline">
-                                                    {fournisseur.ice_ou_cin}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="max-w-xs truncate">
-                                                {fournisseur.adresse || "—"}
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <Package className="h-4 w-4 text-blue-500" />
-                                                    <span className="font-medium">
-                                                        {
-                                                            fournisseur.stocks_count
-                                                        }
-                                                    </span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <ShoppingCart className="h-4 w-4 text-green-500" />
-                                                    <span className="font-medium">
-                                                        {
-                                                            fournisseur.commandes_fournisseurs_count
-                                                        }
-                                                    </span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger
-                                                        asChild
-                                                    >
+                                                </TableCell>
+                                                <TableCell>
+                                                    {fournisseur.telephone ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <Phone className="h-4 w-4 text-gray-500" />
+                                                            {fournisseur.telephone}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {fournisseur.email ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <Mail className="h-4 w-4 text-gray-500" />
+                                                            {fournisseur.email}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {fournisseur.ice ? (
+                                                        <Badge variant="outline">
+                                                            {fournisseur.ice}
+                                                        </Badge>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatDate(fournisseur.created_at)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Link href={route('fournisseurs.show', fournisseur.id)}>
+                                                            <Button variant="ghost" size="sm">
+                                                                <Eye className="h-4 w-4" />
+                                                            </Button>
+                                                        </Link>
+                                                        <Link href={route('fournisseurs.edit', fournisseur.id)}>
+                                                            <Button variant="ghost" size="sm">
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                        </Link>
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
+                                                            onClick={() => setDeleteDialog({ open: true, fournisseur })}
+                                                            className="text-red-600 hover:text-red-700"
                                                         >
-                                                            <Eye className="h-4 w-4" />
+                                                            <Trash2 className="h-4 w-4" />
                                                         </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={`/fournisseurs/${fournisseur.id}`}
-                                                            >
-                                                                <Eye className="h-4 w-4 mr-2" />
-                                                                Voir
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={`/fournisseurs/${fournisseur.id}/edit`}
-                                                            >
-                                                                <Edit className="h-4 w-4 mr-2" />
-                                                                Modifier
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            className="text-red-600 focus:text-red-600"
-                                                            onClick={() =>
-                                                                handleDelete(
-                                                                    fournisseur
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2 className="h-4 w-4 mr-2" />
-                                                            Supprimer
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {fournisseurs.data.length === 0 && (
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
                                         <TableRow>
-                                            <TableCell
-                                                colSpan="7"
-                                                className="text-center py-8 text-gray-500"
-                                            >
+                                            <TableCell colSpan={7} className="text-center text-gray-500">
                                                 Aucun fournisseur trouvé
                                             </TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
                             </Table>
-                        </div>
-                        {/* Pagination */}
-                        {fournisseurs.links &&
-                            fournisseurs.links.length > 3 && (
-                                <div className="flex items-center justify-between mt-4">
-                                    <div className="text-sm text-gray-700">
-                                        Affichage de {fournisseurs.from} à{" "}
-                                        {fournisseurs.to} sur{" "}
-                                        {fournisseurs.total} résultats
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {fournisseurs.links.map(
-                                            (link, index) => (
-                                                <Button
-                                                    key={index}
-                                                    variant={
-                                                        link.active
-                                                            ? "default"
-                                                            : "outline"
+
+                            {/* Pagination */}
+                            {fournisseurs?.links && (
+                                <div className="flex justify-center mt-4">
+                                    <div className="flex gap-2">
+                                        {fournisseurs.links.map((link, index) => (
+                                            <Button
+                                                key={index}
+                                                variant={link.active ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => {
+                                                    if (link.url) {
+                                                        router.get(link.url);
                                                     }
-                                                    size="sm"
-                                                    disabled={!link.url}
-                                                    onClick={() =>
-                                                        link.url &&
-                                                        router.get(link.url)
-                                                    }
-                                                    dangerouslySetInnerHTML={{
-                                                        __html: link.label,
-                                                    }}
-                                                />
-                                            )
-                                        )}
+                                                }}
+                                                disabled={!link.url}
+                                                dangerouslySetInnerHTML={{ __html: link.label }}
+                                            />
+                                        ))}
                                     </div>
                                 </div>
                             )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+
+                    {/* Dialog de confirmation de suppression */}
+                    <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, fournisseur: null })}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Confirmer la suppression</DialogTitle>
+                                <DialogDescription>
+                                    Êtes-vous sûr de vouloir supprimer le fournisseur "{deleteDialog.fournisseur?.nom_societe}" ?
+                                    Cette action est irréversible.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setDeleteDialog({ open: false, fournisseur: null })}
+                                >
+                                    Annuler
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={handleDelete}
+                                >
+                                    Supprimer
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
-            {/* Delete Confirmation Dialog */}
-            <Dialog
-                open={deleteDialog.open}
-                onOpenChange={(open) =>
-                    !open && setDeleteDialog({ open: false, fournisseur: null })
-                }
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Confirmer la suppression</DialogTitle>
-                        <DialogDescription>
-                            Êtes-vous sûr de vouloir supprimer le fournisseur{" "}
-                            <strong>{deleteDialog.fournisseur?.nom}</strong> ?
-                            Cette action est irréversible.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() =>
-                                setDeleteDialog({
-                                    open: false,
-                                    fournisseur: null,
-                                })
-                            }
-                        >
-                            Annuler
-                        </Button>
-                        <Button variant="destructive" onClick={confirmDelete}>
-                            Supprimer
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            {/* Bulk Delete Dialog */}
-            <Dialog open={bulkDeleteDialog} onOpenChange={setBulkDeleteDialog}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>
-                            Confirmer la suppression multiple
-                        </DialogTitle>
-                        <DialogDescription>
-                            Êtes-vous sûr de vouloir supprimer{" "}
-                            {selectedIds.length} fournisseur(s) sélectionné(s) ?
-                            Cette action est irréversible.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setBulkDeleteDialog(false)}
-                        >
-                            Annuler
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={confirmBulkDelete}
-                        >
-                            Supprimer tout
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </AdminLayout>
+        </AuthenticatedLayout>
     );
 }

@@ -3,183 +3,179 @@
 namespace App\Http\Controllers;
 
 use App\Models\Fournisseur;
-use App\Models\Stock;
 use App\Models\CommandeFournisseur;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rule;
 
 class FournisseurController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Afficher la liste des fournisseurs avec pagination, tri et filtres
+     */
+    public function index(Request $request): Response
     {
         $query = Fournisseur::query();
 
-        // Search functionality
-        if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->where('nom', 'like', '%' . $request->search . '%')
-                  ->orWhere('ice_ou_cin', 'like', '%' . $request->search . '%')
-                  ->orWhere('adresse', 'like', '%' . $request->search . '%')
-                  ->orWhere('note', 'like', '%' . $request->search . '%');
+        // Recherche de base
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('nom_societe', 'like', "%{$search}%")
+                  ->orWhere('contact_nom', 'like', "%{$search}%")
+                  ->orWhere('telephone', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('ice', 'like', "%{$search}%");
             });
         }
 
-        // Advanced filters
-        if ($request->nom) {
-            $query->where('nom', 'like', '%' . $request->nom . '%');
+        // Filtres avancés
+        if ($request->filled('nom_societe')) {
+            $query->where('nom_societe', 'like', '%' . $request->get('nom_societe') . '%');
         }
 
-        if ($request->ice_ou_cin) {
-            $query->where('ice_ou_cin', 'like', '%' . $request->ice_ou_cin . '%');
+        if ($request->filled('contact_nom')) {
+            $query->where('contact_nom', 'like', '%' . $request->get('contact_nom') . '%');
         }
 
-        if ($request->adresse) {
-            $query->where('adresse', 'like', '%' . $request->adresse . '%');
+        if ($request->filled('telephone')) {
+            $query->where('telephone', 'like', '%' . $request->get('telephone') . '%');
         }
 
-        // Sorting
-        $sortField = $request->get('sort', 'nom');
+        if ($request->filled('email')) {
+            $query->where('email', 'like', '%' . $request->get('email') . '%');
+        }
+
+        if ($request->filled('ice')) {
+            $query->where('ice', 'like', '%' . $request->get('ice') . '%');
+        }
+
+        // Tri
+        $sortField = $request->get('sort', 'nom_societe');
         $sortDirection = $request->get('direction', 'asc');
-        $query->orderBy($sortField, $sortDirection);
+        
+        $allowedSorts = ['nom_societe', 'contact_nom', 'telephone', 'email', 'ice', 'created_at'];
+        if (in_array($sortField, $allowedSorts)) {
+            $query->orderBy($sortField, $sortDirection);
+        }
 
-        $fournisseurs = $query->withCount(['stocks', 'commandesFournisseurs'])
-                             ->paginate(10)
-                             ->withQueryString();
+        $fournisseurs = $query->paginate(10)->withQueryString();
 
         return Inertia::render('Fournisseurs/Index', [
             'fournisseurs' => $fournisseurs,
-            'filters' => $request->all(['search', 'nom', 'ice_ou_cin', 'adresse', 'sort', 'direction']),
+            'filters' => $request->only(['search', 'nom_societe', 'contact_nom', 'telephone', 'email', 'ice']),
+            'sort' => $sortField,
+            'direction' => $sortDirection,
         ]);
     }
 
-    public function create()
+    /**
+     * Afficher le formulaire de création d'un nouveau fournisseur
+     */
+    public function create(): Response
     {
         return Inertia::render('Fournisseurs/Create');
     }
 
-    public function store(Request $request)
+    /**
+     * Enregistrer un nouveau fournisseur
+     */
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'ice_ou_cin' => 'required|string|unique:fournisseurs,ice_ou_cin|max:255',
-            'adresse' => 'nullable|string|max:500',
-            'note' => 'nullable|string|max:1000',
+            'nom_societe' => 'required|string|max:255',
+            'contact_nom' => 'nullable|string|max:255',
+            'telephone' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'addresse' => 'nullable|string|max:500',
+            'ice' => 'nullable|string|max:255|unique:fournisseurs,ice',
+            'rc' => 'nullable|string|max:255',
+            'if' => 'nullable|string|max:255',
+        ], [
+            'nom_societe.required' => 'Le nom de la société est obligatoire.',
+            'nom_societe.max' => 'Le nom de la société ne peut pas dépasser 255 caractères.',
+            'email.email' => 'L\'adresse email doit être valide.',
+            'ice.unique' => 'Ce numéro ICE existe déjà.',
         ]);
 
         Fournisseur::create($validated);
 
         return redirect()->route('fournisseurs.index')
-                        ->with('success', 'Fournisseur créé avec succès.');
+            ->with('success', 'Fournisseur créé avec succès.');
     }
 
-    public function show(Fournisseur $fournisseur)
+    /**
+     * Afficher les détails d'un fournisseur
+     */
+    public function show(Fournisseur $fournisseur): Response
     {
-        $fournisseur->load([
-            'stocks.produit',
-            'commandesFournisseurs.employer',
-            'commandesFournisseurs.vehicule',
-            'commandesFournisseurs.lines.produit'
-        ]);
-
-        // Get stocks with pagination
-        $stocks = $fournisseur->stocks()
-                             ->with('produit')
-                             ->paginate(10, ['*'], 'stocks_page');
-
-        // Get commandes with pagination
+        // Charger les commandes du fournisseur avec pagination
         $commandes = $fournisseur->commandesFournisseurs()
-                                ->with(['employer', 'vehicule', 'lines.produit'])
-                                ->paginate(10, ['*'], 'commandes_page');
+            ->orderBy('date_commande', 'desc')
+            ->paginate(10);
 
         return Inertia::render('Fournisseurs/Show', [
             'fournisseur' => $fournisseur,
-            'stocks' => $stocks,
             'commandes' => $commandes,
         ]);
     }
 
-    public function edit(Fournisseur $fournisseur)
+    /**
+     * Afficher le formulaire d'édition d'un fournisseur
+     */
+    public function edit(Fournisseur $fournisseur): Response
     {
         return Inertia::render('Fournisseurs/Edit', [
             'fournisseur' => $fournisseur,
         ]);
     }
 
-    public function update(Request $request, Fournisseur $fournisseur)
+    /**
+     * Mettre à jour un fournisseur
+     */
+    public function update(Request $request, Fournisseur $fournisseur): RedirectResponse
     {
         $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'ice_ou_cin' => [
-                'required',
+            'nom_societe' => 'required|string|max:255',
+            'contact_nom' => 'nullable|string|max:255',
+            'telephone' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'addresse' => 'nullable|string|max:500',
+            'ice' => [
+                'nullable',
                 'string',
                 'max:255',
-                Rule::unique('fournisseurs')->ignore($fournisseur->id),
+                Rule::unique('fournisseurs', 'ice')->ignore($fournisseur->id)
             ],
-            'adresse' => 'nullable|string|max:500',
-            'note' => 'nullable|string|max:1000',
+            'rc' => 'nullable|string|max:255',
+            'if' => 'nullable|string|max:255',
+        ], [
+            'nom_societe.required' => 'Le nom de la société est obligatoire.',
+            'nom_societe.max' => 'Le nom de la société ne peut pas dépasser 255 caractères.',
+            'email.email' => 'L\'adresse email doit être valide.',
+            'ice.unique' => 'Ce numéro ICE existe déjà.',
         ]);
 
         $fournisseur->update($validated);
 
         return redirect()->route('fournisseurs.index')
-                        ->with('success', 'Fournisseur mis à jour avec succès.');
+            ->with('success', 'Fournisseur mis à jour avec succès.');
     }
 
-    public function destroy(Fournisseur $fournisseur)
+    /**
+     * Supprimer un fournisseur
+     */
+    public function destroy(Fournisseur $fournisseur): RedirectResponse
     {
-        // Check if fournisseur has related records
-        if ($fournisseur->stocks()->count() > 0 || $fournisseur->commandesFournisseurs()->count() > 0) {
+        try {
+            $fournisseur->delete();
             return redirect()->route('fournisseurs.index')
-                            ->with('error', 'Impossible de supprimer ce fournisseur car il a des stocks ou des commandes associés.');
+                ->with('success', 'Fournisseur supprimé avec succès.');
+        } catch (\Exception $e) {
+            return redirect()->route('fournisseurs.index')
+                ->with('error', 'Impossible de supprimer ce fournisseur car il est lié à d\'autres données.');
         }
-
-        $fournisseur->delete();
-
-        return redirect()->route('fournisseurs.index')
-                        ->with('success', 'Fournisseur supprimé avec succès.');
-    }
-
-    public function export(Request $request)
-    {
-        $query = Fournisseur::query();
-
-        // Apply same filters as index
-        if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->where('nom', 'like', '%' . $request->search . '%')
-                  ->orWhere('ice_ou_cin', 'like', '%' . $request->search . '%')
-                  ->orWhere('adresse', 'like', '%' . $request->search . '%')
-                  ->orWhere('note', 'like', '%' . $request->search . '%');
-            });
-        }
-
-        $fournisseurs = $query->get();
-
-        $filename = 'fournisseurs_' . date('Y-m-d_H-i-s') . '.csv';
-
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ];
-
-        $callback = function() use ($fournisseurs) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, ['Nom', 'ICE/CIN', 'Adresse', 'Note', 'Date de création']);
-
-            foreach ($fournisseurs as $fournisseur) {
-                fputcsv($file, [
-                    $fournisseur->nom,
-                    $fournisseur->ice_ou_cin,
-                    $fournisseur->adresse,
-                    $fournisseur->note,
-                    $fournisseur->created_at->format('d/m/Y H:i'),
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
     }
 }
