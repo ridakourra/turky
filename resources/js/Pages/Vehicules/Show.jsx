@@ -71,7 +71,7 @@ export default function Show({ vehicule, commandesClients, depensesMachines, uti
     return (
         <AdminLayout>
             <Head title={`Véhicule ${vehicule.matricule}`} />
-            
+
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -81,15 +81,15 @@ export default function Show({ vehicule, commandesClients, depensesMachines, uti
                         </h1>
                     </div>
                     <div className="flex space-x-2">
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={() => router.get(route('vehicules.edit', vehicule.id))}
                         >
                             <Edit className="w-4 h-4 mr-2" />
                             Modifier
                         </Button>
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={() => router.get(route('vehicules.index'))}
                         >
                             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -301,24 +301,6 @@ export default function Show({ vehicule, commandesClients, depensesMachines, uti
                                 <DialogTitle>Faire le plein</DialogTitle>
                             </DialogHeader>
                             <form onSubmit={handleCarburantSubmit} className="space-y-4">
-                                <div>
-                                    <Label htmlFor="carburant_id">Type de carburant *</Label>
-                                    <Select value={carburantData.carburant_id} onValueChange={(value) => setCarburantData('carburant_id', value)}>
-                                        <SelectTrigger className={carburantErrors.carburant_id ? 'border-red-500' : ''}>
-                                            <SelectValue placeholder="Sélectionner le carburant" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {carburants?.map((carburant) => (
-                                                <SelectItem key={carburant.id} value={carburant.id.toString()}>
-                                                    {carburant.type_carburant} (Stock: {carburant.quantite_stock} L)
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {carburantErrors.carburant_id && (
-                                        <p className="text-red-500 text-sm mt-1">{carburantErrors.carburant_id}</p>
-                                    )}
-                                </div>
 
                                 <div>
                                     <Label htmlFor="quantite">Quantité (L) *</Label>
@@ -333,22 +315,6 @@ export default function Show({ vehicule, commandesClients, depensesMachines, uti
                                     />
                                     {carburantErrors.quantite && (
                                         <p className="text-red-500 text-sm mt-1">{carburantErrors.quantite}</p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <Label htmlFor="prix_unitaire">Prix unitaire (DT/L) *</Label>
-                                    <Input
-                                        id="prix_unitaire"
-                                        type="number"
-                                        step="0.001"
-                                        min="0"
-                                        value={carburantData.prix_unitaire}
-                                        onChange={(e) => setCarburantData('prix_unitaire', e.target.value)}
-                                        className={carburantErrors.prix_unitaire ? 'border-red-500' : ''}
-                                    />
-                                    {carburantErrors.prix_unitaire && (
-                                        <p className="text-red-500 text-sm mt-1">{carburantErrors.prix_unitaire}</p>
                                     )}
                                 </div>
 

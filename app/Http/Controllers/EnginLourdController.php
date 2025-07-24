@@ -172,27 +172,38 @@ class EnginLourdController extends Controller
     public function addCarburant(Request $request, EnginLourd $enginLourd)
     {
         $validated = $request->validate([
-            'quantite' => 'required|numeric|min:0',
-            'date_utilisation' => 'required|date',
-            'commentaire' => 'nullable|string'
+            'quantite' => 'required|numeric|min:0.1',
+            'date_utilisation' => 'nullable'
+        ], [
+            'quantite.required' => 'La quantité est obligatoire.',
+            'quantite.min' => 'La quantité doit être supérieure à 0.',
         ]);
 
-        DB::transaction(function () use ($validated, $enginLourd) {
-            // Vérifier le niveau de carburant disponible
-            $carburant = Carburant::first();
+        $carburant = Carburant::first();
 
-            if (!$carburant || $carburant->niveau_actuel < $validated['quantite']) {
-                throw new \Exception('Quantité de carburant insuffisante.');
-            }
+        if (!$carburant || $carburant->niveau_actuel < $validated['quantite']) {
+            return redirect()->route('engins-lourds.show', $enginLourd)
+                ->with('error', 'Stock de carburant insuffisant.');
+        }
 
-            // Créer l'utilisation de carburant
-            $enginLourd->utilisationsCarburant()->create($validated);
+        DB::transaction(function () use ($validated, $enginLourd, $carburant) {
 
-            // Mettre à jour le niveau de carburant
-            $carburant->decrement('niveau_actuel', $validated['quantite']);
+
+            $enginLourd->utilisationsCarburant()->create([
+                'machine_type' => EnginLourd::class,
+                'machine_id' => $enginLourd->id,
+                'quantite' => $validated['quantite'],
+                'date_utilisation' => $validated['date_utilisation'],
+                'commentaire' => "Ajouter {$validated['quantite']}L de carburant pour engin lourd {$enginLourd->matricule}"
+            ]);
+
+            // Mettre à jour le stock de carburant
+            $carburant->update([
+                'niveau_actuel' => $carburant->niveau_actuel - $validated['quantite']
+            ]);
         });
 
-        return redirect()->route('engins-lourds.show', $enginLourd)
-            ->with('success', 'Carburant ajouté avec succès.');
+        return redirect()->route('enginLourds.show', $enginLourd)
+            ->with('success', 'Ravitaillement effectué avec succès.');
     }
 }

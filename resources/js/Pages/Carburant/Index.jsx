@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -18,7 +18,7 @@ import { fr } from 'date-fns/locale';
 
 export default function CarburantIndex({ carburant, utilisations, livraisons, fournisseurs }) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    
+
     const { data, setData, post, processing, errors, reset } = useForm({
         fournisseur_id: '',
         quantite: '',
@@ -74,159 +74,159 @@ export default function CarburantIndex({ carburant, utilisations, livraisons, fo
         return 'Machine inconnue';
     };
 
-    const pourcentage = carburant?.isPourcentageNiveauActuel() || 0;
-    const isAlerte = carburant?.isAlerteSeuil() || false;
+    const pourcentage = carburant?.niveau_actuel && carburant?.capacite_maximale ?
+        (carburant.niveau_actuel / carburant.capacite_maximale) * 100 : 0;
+    const isAlerte = carburant?.seuil_alerte && carburant?.niveau_actuel ?
+        carburant.niveau_actuel <= carburant.seuil_alerte : false;
 
     return (
-        <AuthenticatedLayout
-            header={
-                <div className="flex justify-between items-center">
-                    <h2 className="font-semibold text-xl text-gray-800 leading-tight">
-                        Gestion du Carburant
-                    </h2>
-                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button className="bg-yellow-500 hover:bg-yellow-600">
-                                <Plus className="h-4 w-4 mr-2" />
-                                Nouvelle Livraison
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
-                            <DialogHeader>
-                                <DialogTitle>Ajouter une Livraison de Carburant</DialogTitle>
-                                <DialogDescription>
-                                    Enregistrez une nouvelle livraison de carburant dans le système.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleSubmit}>
-                                <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="fournisseur_id" className="text-right">
-                                            Fournisseur
-                                        </Label>
-                                        <div className="col-span-3">
-                                            <Select
-                                                value={data.fournisseur_id}
-                                                onValueChange={(value) => setData('fournisseur_id', value)}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Sélectionner un fournisseur" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Sélectionner un fournisseur</SelectItem>
-                                                    {fournisseurs?.map((fournisseur) => (
-                                                        <SelectItem key={fournisseur.id} value={fournisseur.id.toString()}>
-                                                            {fournisseur.nom_societe}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {errors.fournisseur_id && (
-                                                <p className="text-sm text-red-600 mt-1">{errors.fournisseur_id}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="quantite" className="text-right">
-                                            Quantité (L)
-                                        </Label>
-                                        <div className="col-span-3">
-                                            <Input
-                                                id="quantite"
-                                                type="number"
-                                                step="0.01"
-                                                value={data.quantite}
-                                                onChange={(e) => setData('quantite', e.target.value)}
-                                                placeholder="0.00"
-                                            />
-                                            {errors.quantite && (
-                                                <p className="text-sm text-red-600 mt-1">{errors.quantite}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="montant_total" className="text-right">
-                                            Montant Total
-                                        </Label>
-                                        <div className="col-span-3">
-                                            <Input
-                                                id="montant_total"
-                                                type="number"
-                                                step="0.01"
-                                                value={data.montant_total}
-                                                onChange={(e) => setData('montant_total', e.target.value)}
-                                                placeholder="0.00"
-                                            />
-                                            {errors.montant_total && (
-                                                <p className="text-sm text-red-600 mt-1">{errors.montant_total}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="date_livraison" className="text-right">
-                                            Date de Livraison
-                                        </Label>
-                                        <div className="col-span-3">
-                                            <Input
-                                                id="date_livraison"
-                                                type="date"
-                                                value={data.date_livraison}
-                                                onChange={(e) => setData('date_livraison', e.target.value)}
-                                            />
-                                            {errors.date_livraison && (
-                                                <p className="text-sm text-red-600 mt-1">{errors.date_livraison}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="numero_bon" className="text-right">
-                                            N° Bon
-                                        </Label>
-                                        <div className="col-span-3">
-                                            <Input
-                                                id="numero_bon"
-                                                value={data.numero_bon}
-                                                onChange={(e) => setData('numero_bon', e.target.value)}
-                                                placeholder="Numéro du bon de livraison"
-                                            />
-                                            {errors.numero_bon && (
-                                                <p className="text-sm text-red-600 mt-1">{errors.numero_bon}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="commentaire" className="text-right">
-                                            Commentaire
-                                        </Label>
-                                        <div className="col-span-3">
-                                            <Textarea
-                                                id="commentaire"
-                                                value={data.commentaire}
-                                                onChange={(e) => setData('commentaire', e.target.value)}
-                                                placeholder="Commentaire optionnel"
-                                                rows={3}
-                                            />
-                                            {errors.commentaire && (
-                                                <p className="text-sm text-red-600 mt-1">{errors.commentaire}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button type="submit" disabled={processing} className="bg-yellow-500 hover:bg-yellow-600">
-                                        {processing ? 'Ajout...' : 'Ajouter la Livraison'}
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-            }
-        >
+        <AdminLayout>
             <Head title="Gestion du Carburant" />
 
             <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+                <div className="mx-auto sm:px-6 lg:px-8 space-y-6">
+                    {/* Head Title */}
+                    <div className="flex justify-between items-center">
+                        <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                            Gestion du Carburant
+                        </h2>
+                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="bg-yellow-500 hover:bg-yellow-600">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Nouvelle Livraison
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                    <DialogTitle>Ajouter une Livraison de Carburant</DialogTitle>
+                                    <DialogDescription>
+                                        Enregistrez une nouvelle livraison de carburant dans le système.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleSubmit}>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="fournisseur_id" className="text-right">
+                                                Fournisseur
+                                            </Label>
+                                            <div className="col-span-3">
+                                                <Select
+                                                    value={data.fournisseur_id}
+                                                    onValueChange={(value) => setData('fournisseur_id', value)}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Sélectionner un fournisseur" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Sélectionner un fournisseur</SelectItem>
+                                                        {fournisseurs?.map((fournisseur) => (
+                                                            <SelectItem key={fournisseur.id} value={fournisseur.id.toString()}>
+                                                                {fournisseur.nom_societe}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                {errors.fournisseur_id && (
+                                                    <p className="text-sm text-red-600 mt-1">{errors.fournisseur_id}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="quantite" className="text-right">
+                                                Quantité (L)
+                                            </Label>
+                                            <div className="col-span-3">
+                                                <Input
+                                                    id="quantite"
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={data.quantite}
+                                                    onChange={(e) => setData('quantite', e.target.value)}
+                                                    placeholder="0.00"
+                                                />
+                                                {errors.quantite && (
+                                                    <p className="text-sm text-red-600 mt-1">{errors.quantite}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="montant_total" className="text-right">
+                                                Montant Total
+                                            </Label>
+                                            <div className="col-span-3">
+                                                <Input
+                                                    id="montant_total"
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={data.montant_total}
+                                                    onChange={(e) => setData('montant_total', e.target.value)}
+                                                    placeholder="0.00"
+                                                />
+                                                {errors.montant_total && (
+                                                    <p className="text-sm text-red-600 mt-1">{errors.montant_total}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="date_livraison" className="text-right">
+                                                Date de Livraison
+                                            </Label>
+                                            <div className="col-span-3">
+                                                <Input
+                                                    id="date_livraison"
+                                                    type="date"
+                                                    value={data.date_livraison}
+                                                    onChange={(e) => setData('date_livraison', e.target.value)}
+                                                />
+                                                {errors.date_livraison && (
+                                                    <p className="text-sm text-red-600 mt-1">{errors.date_livraison}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="numero_bon" className="text-right">
+                                                N° Bon
+                                            </Label>
+                                            <div className="col-span-3">
+                                                <Input
+                                                    id="numero_bon"
+                                                    value={data.numero_bon}
+                                                    onChange={(e) => setData('numero_bon', e.target.value)}
+                                                    placeholder="Numéro du bon de livraison"
+                                                />
+                                                {errors.numero_bon && (
+                                                    <p className="text-sm text-red-600 mt-1">{errors.numero_bon}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="commentaire" className="text-right">
+                                                Commentaire
+                                            </Label>
+                                            <div className="col-span-3">
+                                                <Textarea
+                                                    id="commentaire"
+                                                    value={data.commentaire}
+                                                    onChange={(e) => setData('commentaire', e.target.value)}
+                                                    placeholder="Commentaire optionnel"
+                                                    rows={3}
+                                                />
+                                                {errors.commentaire && (
+                                                    <p className="text-sm text-red-600 mt-1">{errors.commentaire}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button type="submit" disabled={processing} className="bg-yellow-500 hover:bg-yellow-600">
+                                            {processing ? 'Ajout...' : 'Ajouter la Livraison'}
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
                     {/* Carte de statut du carburant */}
                     <Card>
                         <CardHeader>
@@ -344,7 +344,7 @@ export default function CarburantIndex({ carburant, utilisations, livraisons, fo
                                             )}
                                         </TableBody>
                                     </Table>
-                                    
+
                                     {/* Pagination pour utilisations */}
                                     {utilisations?.links && (
                                         <div className="flex justify-center mt-4">
@@ -448,7 +448,7 @@ export default function CarburantIndex({ carburant, utilisations, livraisons, fo
                                             )}
                                         </TableBody>
                                     </Table>
-                                    
+
                                     {/* Pagination pour livraisons */}
                                     {livraisons?.links && (
                                         <div className="flex justify-center mt-4">
@@ -476,6 +476,6 @@ export default function CarburantIndex({ carburant, utilisations, livraisons, fo
                     </Tabs>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

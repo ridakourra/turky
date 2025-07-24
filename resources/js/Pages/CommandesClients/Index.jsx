@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AdminLayout';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -42,7 +42,7 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
                 delete filterData[key];
             }
         });
-        
+
         router.get(route('commandes-clients.index'), filterData, {
             preserveState: true,
             replace: true
@@ -52,12 +52,12 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
     const handleSort = (field) => {
         const currentSort = filters.sort;
         const currentDirection = filters.direction;
-        
+
         let newDirection = 'asc';
         if (currentSort === field && currentDirection === 'asc') {
             newDirection = 'desc';
         }
-        
+
         router.get(route('commandes-clients.index'), {
             ...filters,
             sort: field,
@@ -72,8 +72,8 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
         if (filters.sort !== field) {
             return <ArrowUpDown className="h-4 w-4" />;
         }
-        return filters.direction === 'asc' ? 
-            <ArrowUp className="h-4 w-4" /> : 
+        return filters.direction === 'asc' ?
+            <ArrowUp className="h-4 w-4" /> :
             <ArrowDown className="h-4 w-4" />;
     };
 
@@ -103,7 +103,7 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
             'partiellement_paye': 'Partiellement payé',
             'paye': 'Payé'
         };
-        
+
         return (
             <Badge variant={variants[statut]}>
                 {labels[statut]}
@@ -125,7 +125,7 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
     return (
         <AuthenticatedLayout>
             <Head title="Commandes Clients" />
-            
+
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex justify-between items-center">
@@ -160,8 +160,8 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
                                     <Search className="h-4 w-4 mr-2" />
                                     Rechercher
                                 </Button>
-                                <Button 
-                                    type="button" 
+                                <Button
+                                    type="button"
                                     variant="outline"
                                     onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                                 >
@@ -176,8 +176,8 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium mb-2">Client</label>
-                                            <Select 
-                                                value={advancedFilters.client_id} 
+                                            <Select
+                                                value={advancedFilters.client_id}
                                                 onValueChange={(value) => setAdvancedFilters({...advancedFilters, client_id: value})}
                                             >
                                                 <SelectTrigger>
@@ -196,8 +196,8 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
 
                                         <div>
                                             <label className="block text-sm font-medium mb-2">Véhicule</label>
-                                            <Select 
-                                                value={advancedFilters.vehicule_id} 
+                                            <Select
+                                                value={advancedFilters.vehicule_id}
                                                 onValueChange={(value) => setAdvancedFilters({...advancedFilters, vehicule_id: value})}
                                             >
                                                 <SelectTrigger>
@@ -216,8 +216,8 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
 
                                         <div>
                                             <label className="block text-sm font-medium mb-2">Chauffeur</label>
-                                            <Select 
-                                                value={advancedFilters.chauffeur_id} 
+                                            <Select
+                                                value={advancedFilters.chauffeur_id}
                                                 onValueChange={(value) => setAdvancedFilters({...advancedFilters, chauffeur_id: value})}
                                             >
                                                 <SelectTrigger>
@@ -236,8 +236,8 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
 
                                         <div>
                                             <label className="block text-sm font-medium mb-2">Statut Paiement</label>
-                                            <Select 
-                                                value={advancedFilters.statut_paiement} 
+                                            <Select
+                                                value={advancedFilters.statut_paiement}
                                                 onValueChange={(value) => setAdvancedFilters({...advancedFilters, statut_paiement: value})}
                                             >
                                                 <SelectTrigger>
@@ -292,7 +292,7 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
                                             />
                                         </div>
                                     </div>
-                                    
+
                                     <div className="flex gap-2 mt-4">
                                         <Button onClick={handleAdvancedFilter} className="bg-yellow-500 hover:bg-yellow-600">
                                             Appliquer les filtres
@@ -317,7 +317,7 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead 
+                                        <TableHead
                                             className="cursor-pointer hover:bg-gray-50"
                                             onClick={() => handleSort('id')}
                                         >
@@ -326,7 +326,7 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
                                                 {getSortIcon('id')}
                                             </div>
                                         </TableHead>
-                                        <TableHead 
+                                        <TableHead
                                             className="cursor-pointer hover:bg-gray-50"
                                             onClick={() => handleSort('client')}
                                         >
@@ -335,7 +335,7 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
                                                 {getSortIcon('client')}
                                             </div>
                                         </TableHead>
-                                        <TableHead 
+                                        <TableHead
                                             className="cursor-pointer hover:bg-gray-50"
                                             onClick={() => handleSort('date_commande')}
                                         >
@@ -344,7 +344,7 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
                                                 {getSortIcon('date_commande')}
                                             </div>
                                         </TableHead>
-                                        <TableHead 
+                                        <TableHead
                                             className="cursor-pointer hover:bg-gray-50"
                                             onClick={() => handleSort('montant_total')}
                                         >
@@ -397,8 +397,8 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
                                                                 <Eye className="h-4 w-4" />
                                                             </Button>
                                                         </Link>
-                                                        <Button 
-                                                            variant="outline" 
+                                                        <Button
+                                                            variant="outline"
                                                             size="sm"
                                                             onClick={() => handleDelete(commande)}
                                                             className="text-red-600 hover:text-red-700"
@@ -455,14 +455,14 @@ export default function Index({ commandes, clients, vehicules, chauffeurs, filte
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter>
-                            <Button 
-                                variant="outline" 
+                            <Button
+                                variant="outline"
                                 onClick={() => setDeleteDialog({ open: false, commande: null })}
                             >
                                 Annuler
                             </Button>
-                            <Button 
-                                variant="destructive" 
+                            <Button
+                                variant="destructive"
                                 onClick={confirmDelete}
                             >
                                 Supprimer

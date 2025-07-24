@@ -34,18 +34,4 @@ class Carburant extends Model
     {
         return $this->hasMany(UtilisationCarburant::class);
     }
-
-    // Helper methods
-    public function isPourcentageNiveauActuel(): float
-    {
-        if ($this->capacite_maximale == 0) {
-            return 0;
-        }
-        return ($this->niveau_actuel / $this->capacite_maximale) * 100;
-    }
-
-    public function isAlerteSeuil(): bool
-    {
-        return $this->seuil_alerte && $this->niveau_actuel <= $this->seuil_alerte;
-    }
 }

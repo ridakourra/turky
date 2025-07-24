@@ -21,7 +21,7 @@ class CarburantController extends Controller
     {
         // Récupérer les données du carburant (il devrait y avoir un seul enregistrement)
         $carburant = Carburant::first();
-        
+
         // Si aucun carburant n'existe, créer un enregistrement par défaut
         if (!$carburant) {
             $carburant = Carburant::create([
@@ -115,7 +115,7 @@ class CarburantController extends Controller
     public function getStatistiques(): array
     {
         $carburant = Carburant::first();
-        
+
         if (!$carburant) {
             return [
                 'niveau_actuel' => 0,
@@ -131,8 +131,10 @@ class CarburantController extends Controller
 
         return [
             'niveau_actuel' => $carburant->niveau_actuel,
-            'pourcentage' => $carburant->isPourcentageNiveauActuel(),
-            'alerte' => $carburant->isAlerteSeuil(),
+            'pourcentage' => $carburant->capacite_maximale > 0 ?
+                ($carburant->niveau_actuel / $carburant->capacite_maximale) * 100 : 0,
+            'alerte' => $carburant->seuil_alerte ?
+                $carburant->niveau_actuel <= $carburant->seuil_alerte : false,
             'total_livraisons' => $totalLivraisons,
             'total_utilisations' => $totalUtilisations,
         ];

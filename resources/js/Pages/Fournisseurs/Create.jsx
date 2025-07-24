@@ -1,6 +1,6 @@
 import React from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AdminLayout';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -26,25 +26,22 @@ export default function FournisseursCreate() {
     };
 
     return (
-        <AuthenticatedLayout
-            header={
-                <div className="flex items-center gap-4">
-                    <Link href={route('fournisseurs.index')}>
-                        <Button variant="ghost" size="sm">
-                            <ArrowLeft className="h-4 w-4 mr-2" />
-                            Retour
-                        </Button>
-                    </Link>
-                    <h2 className="font-semibold text-xl text-gray-800 leading-tight">
-                        Nouveau Fournisseur
-                    </h2>
-                </div>
-            }
-        >
+        <AuthenticatedLayout>
             <Head title="Nouveau Fournisseur" />
 
             <div className="py-12">
-                <div className="max-w-4xl mx-auto sm:px-6 lg:px-8">
+                <div className=" mx-auto sm:px-6 lg:px-8">
+                    <div className="flex items-center gap-4">
+                        <Link href={route('fournisseurs.index')}>
+                            <Button variant="ghost" size="sm">
+                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                Retour
+                            </Button>
+                        </Link>
+                        <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                            Nouveau Fournisseur
+                        </h2>
+                    </div>
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -218,8 +215,8 @@ export default function FournisseursCreate() {
                                             Annuler
                                         </Button>
                                     </Link>
-                                    <Button 
-                                        type="submit" 
+                                    <Button
+                                        type="submit"
                                         disabled={processing}
                                         className="bg-yellow-500 hover:bg-yellow-600"
                                     >

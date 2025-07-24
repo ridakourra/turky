@@ -66,7 +66,6 @@ class VehiculeController extends Controller
     public function create()
     {
         $chauffeurs = Employee::where('role', 'chauffeur')
-            ->where('actif', true)
             ->orderBy('nom_complet')
             ->get();
 
@@ -122,6 +121,8 @@ class VehiculeController extends Controller
             }
         ]);
 
+        // return response()->json($vehicule);
+
         // Commandes clients paginées
         $commandesClients = CommandeClient::where('vehicule_id', $vehicule->id)
             ->with(['client', 'paiement'])
@@ -145,27 +146,31 @@ class VehiculeController extends Controller
 
         // Consommation carburant
         $consommationCarburant = $vehicule->utilisationsCarburant()->sum('quantite');
-        
+
         // Stock carburant disponible
         $carburant = Carburant::first();
 
         return Inertia::render('Vehicules/Show', [
             'vehicule' => $vehicule,
             'commandesClients' => $commandesClients,
-            'commandesFournisseurs' => $commandesFournisseurs,
-            'totalDepenses' => $totalDepenses,
-            'depensesParType' => $depensesParType,
-            'consommationCarburant' => $consommationCarburant,
-            'carburant' => $carburant
+            'depensesMachines' => $vehicule->depensesMachines,
+            'utilisationsCarburant' => $vehicule->utilisationsCarburant,
+            'carburants' => [$carburant],
+            'stats' => [
+                'total_commandes' => $commandesClients->total(),
+                'total_depenses' => $totalDepenses,
+                'total_carburant' => $consommationCarburant
+            ]
         ]);
     }
 
     public function edit(Vehicule $vehicule)
     {
         $chauffeurs = Employee::where('role', 'chauffeur')
-            ->where('actif', true)
             ->orderBy('nom_complet')
             ->get();
+
+        // dd($chauffeurs);
 
         return Inertia::render('Vehicules/Edit', [
             'vehicule' => $vehicule,
@@ -230,14 +235,22 @@ class VehiculeController extends Controller
 
         DB::transaction(function () use ($validated, $vehicule) {
             // Créer la dépense
-            $depense = $vehicule->depensesMachines()->create($validated);
+            DepenseMachine::create([
+                'machine_type' => Vehicule::class,
+                'machine_id' => $vehicule->id,
+                'type_depense' => $validated['type_depense'],
+                'montant' => $validated['montant'],
+                'date_depense' => $validated['date_depense'],
+                'description' => "Dépense {$validated['type_depense']} pour véhicule {$vehicule->matricule}",
+                'facture_reference' => ''
+            ]);
 
-            // Créer la transaction
             Transaction::create([
                 'type_transaction' => 'sortie',
-                'reference_type' => get_class($depense),
-                'reference_id' => $depense->id,
+                'reference_type' => Vehicule::class,
+                'reference_id' => $vehicule->id,
                 'montant' => $validated['montant'],
+                'date_transaction' => $validated['date_depense'],
                 'description' => "Dépense {$validated['type_depense']} pour véhicule {$vehicule->matricule}"
             ]);
         });
@@ -250,47 +263,33 @@ class VehiculeController extends Controller
     {
         $validated = $request->validate([
             'quantite' => 'required|numeric|min:0.1',
-            'commentaire' => 'nullable|string'
+            'date_utilisation' => 'nullable'
         ], [
             'quantite.required' => 'La quantité est obligatoire.',
-            'quantite.min' => 'La quantité doit être supérieure à 0.'
+            'quantite.min' => 'La quantité doit être supérieure à 0.',
         ]);
 
         $carburant = Carburant::first();
-        
+
         if (!$carburant || $carburant->niveau_actuel < $validated['quantite']) {
             return redirect()->route('vehicules.show', $vehicule)
                 ->with('error', 'Stock de carburant insuffisant.');
         }
 
         DB::transaction(function () use ($validated, $vehicule, $carburant) {
-            // Créer l'utilisation de carburant
-            $utilisation = $vehicule->utilisationsCarburant()->create([
+
+
+            $vehicule->utilisationsCarburant()->create([
+                'machine_type' => Vehicule::class,
+                'machine_id' => $vehicule->id,
                 'quantite' => $validated['quantite'],
-                'date_utilisation' => now(),
-                'commentaire' => $validated['commentaire']
+                'date_utilisation' => $validated['date_utilisation'],
+                'commentaire' => "Ajouter {$validated['quantite']}L de carburant pour véhicule {$vehicule->matricule}"
             ]);
 
             // Mettre à jour le stock de carburant
             $carburant->update([
                 'niveau_actuel' => $carburant->niveau_actuel - $validated['quantite']
-            ]);
-
-            // Créer la dépense de carburant
-            $depense = $vehicule->depensesMachines()->create([
-                'type_depense' => 'carburant',
-                'montant' => $validated['quantite'] * 12, // Prix estimé par litre
-                'date_depense' => now(),
-                'description' => "Ravitaillement carburant - {$validated['quantite']}L"
-            ]);
-
-            // Créer la transaction
-            Transaction::create([
-                'type_transaction' => 'sortie',
-                'reference_type' => get_class($depense),
-                'reference_id' => $depense->id,
-                'montant' => $depense->montant,
-                'description' => "Ravitaillement carburant véhicule {$vehicule->matricule}"
             ]);
         });
 

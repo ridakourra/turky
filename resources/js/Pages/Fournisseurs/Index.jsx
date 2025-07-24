@@ -109,25 +109,22 @@ export default function FournisseursIndex({ fournisseurs, filters, sort, directi
     };
 
     return (
-        <AuthenticatedLayout
-            header={
-                <div className="flex justify-between items-center">
-                    <h2 className="font-semibold text-xl text-gray-800 leading-tight">
-                        Gestion des Fournisseurs
-                    </h2>
-                    <Link href={route('fournisseurs.create')}>
-                        <Button className="bg-yellow-500 hover:bg-yellow-600">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nouveau Fournisseur
-                        </Button>
-                    </Link>
-                </div>
-            }
-        >
+        <AuthenticatedLayout>
             <Head title="Fournisseurs" />
 
             <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+                <div className="mx-auto sm:px-6 lg:px-8 space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                            Gestion des Fournisseurs
+                        </h2>
+                        <Link href={route('fournisseurs.create')}>
+                            <Button className="bg-yellow-500 hover:bg-yellow-600">
+                                <Plus className="h-4 w-4 mr-2" />
+                                Nouveau Fournisseur
+                            </Button>
+                        </Link>
+                    </div>
                     {/* Messages flash */}
                     {flash?.success && (
                         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">

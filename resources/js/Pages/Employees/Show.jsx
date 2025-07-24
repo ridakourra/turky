@@ -10,10 +10,11 @@ import { Badge } from '@/Components/ui/badge';
 import { Textarea } from '@/Components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/Components/ui/alert-dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { ArrowLeft, Edit, Plus, DollarSign, Calendar, Truck, FileText, Trash2 } from 'lucide-react';
 import { Link } from '@inertiajs/react';
 
-export default function Show({ employee, salaireCalculations, produits }) {
+export default function Show({ employee, salaireCalculations, historiqueTravail, produits }) {
     const [deleteEmployee, setDeleteEmployee] = useState(null);
     const [showAbsenceDialog, setShowAbsenceDialog] = useState(false);
     const [showBudgetDialog, setShowBudgetDialog] = useState(false);
@@ -32,7 +33,8 @@ export default function Show({ employee, salaireCalculations, produits }) {
     const budgetForm = useForm({
         montant: '',
         description: '',
-        date_attribution: new Date().toISOString().split('T')[0]
+        date_attribution: new Date().toISOString().split('T')[0],
+        statut: 'attribue'
     });
 
     const historiqueForm = useForm({
@@ -46,6 +48,8 @@ export default function Show({ employee, salaireCalculations, produits }) {
         description: ''
     });
 
+
+
     const handleAbsenceSubmit = (e) => {
         e.preventDefault();
         absenceForm.post(route('employees.absences.store', employee.id), {
@@ -58,12 +62,23 @@ export default function Show({ employee, salaireCalculations, produits }) {
 
     const handleBudgetSubmit = (e) => {
         e.preventDefault();
-        budgetForm.post(route('employees.budgets.store', employee.id), {
-            onSuccess: () => {
-                setShowBudgetDialog(false);
-                budgetForm.reset();
-            }
-        });
+        if (employee.budget_chauffeur) {
+            // Update existing budget
+            budgetForm.put(route('employees.budgets.update', [employee.id, employee.budget_chauffeur.id]), {
+                onSuccess: () => {
+                    setShowBudgetDialog(false);
+                    budgetForm.reset();
+                }
+            });
+        } else {
+            // Create new budget
+            budgetForm.post(route('employees.budgets.store', employee.id), {
+                onSuccess: () => {
+                    setShowBudgetDialog(false);
+                    budgetForm.reset();
+                }
+            });
+        }
     };
 
     const handleHistoriqueSubmit = (e) => {
@@ -84,6 +99,24 @@ export default function Show({ employee, salaireCalculations, produits }) {
                 paymentForm.reset();
             }
         });
+    };
+
+
+
+    const openBudgetDialog = () => {
+        if (employee.budget_chauffeur) {
+            // Fill form with existing budget data
+            budgetForm.setData({
+                montant: employee.budget_chauffeur.montant.toString(),
+                description: employee.budget_chauffeur.description || '',
+                date_attribution: employee.budget_chauffeur.date_attribution,
+                statut: employee.budget_chauffeur.statut
+            });
+        } else {
+            // Reset form for new budget
+            budgetForm.reset();
+        }
+        setShowBudgetDialog(true);
     };
 
     const handleDelete = () => {
@@ -458,17 +491,17 @@ export default function Show({ employee, salaireCalculations, produits }) {
                     <Card>
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle>Budgets chauffeur</CardTitle>
+                                <CardTitle>Budget chauffeur</CardTitle>
                                 <Dialog open={showBudgetDialog} onOpenChange={setShowBudgetDialog}>
                                     <DialogTrigger asChild>
-                                        <Button size="sm" variant="outline">
+                                        <Button size="sm" variant="outline" onClick={openBudgetDialog}>
                                             <Plus className="w-4 h-4 mr-2" />
-                                            Ajouter un budget
+                                            {employee.budget_chauffeur ? 'Modifier le budget' : 'Ajouter un budget'}
                                         </Button>
                                     </DialogTrigger>
                                     <DialogContent>
                                         <DialogHeader>
-                                            <DialogTitle>Nouveau budget</DialogTitle>
+                                            <DialogTitle>{employee.budget_chauffeur ? 'Modifier le budget' : 'Nouveau budget'}</DialogTitle>
                                         </DialogHeader>
                                         <form onSubmit={handleBudgetSubmit} className="space-y-4">
                                             <div>
@@ -490,6 +523,24 @@ export default function Show({ employee, salaireCalculations, produits }) {
                                                     required
                                                 />
                                             </div>
+                                            {employee.budget_chauffeur && (
+                                                <div>
+                                                    <Label>Statut *</Label>
+                                                    <Select
+                                                        value={budgetForm.data.statut}
+                                                        onValueChange={(value) => budgetForm.setData('statut', value)}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Sélectionner le statut" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="attribue">Attribué</SelectItem>
+                                                            <SelectItem value="utilise">Utilisé</SelectItem>
+                                                            <SelectItem value="expire">Expiré</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
                                             <div>
                                                 <Label>Description</Label>
                                                 <Textarea
@@ -503,7 +554,7 @@ export default function Show({ employee, salaireCalculations, produits }) {
                                                     Annuler
                                                 </Button>
                                                 <Button type="submit" disabled={budgetForm.processing}>
-                                                    Ajouter
+                                                    {employee.budget_chauffeur ? 'Modifier' : 'Ajouter'}
                                                 </Button>
                                             </div>
                                         </form>
@@ -512,26 +563,22 @@ export default function Show({ employee, salaireCalculations, produits }) {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            {employee.budget_chauffeurs?.length > 0 ? (
-                                <div className="space-y-3">
-                                    {employee.budget_chauffeurs.map((budget) => (
-                                        <div key={budget.id} className="border rounded-lg p-3">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <p className="font-medium">{budget.montant} DH</p>
-                                                    <p className="text-sm text-gray-600">
-                                                        {new Date(budget.date_attribution).toLocaleDateString('fr-FR')}
-                                                    </p>
-                                                    {budget.description && (
-                                                        <p className="text-sm text-gray-700 mt-1">{budget.description}</p>
-                                                    )}
-                                                </div>
-                                                <Badge className={`${getBudgetStatusBadge(budget.statut)} text-white`}>
-                                                    {budget.statut}
-                                                </Badge>
-                                            </div>
+                            {employee.budget_chauffeur ? (
+                                <div className="border rounded-lg p-3">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-medium">{employee.budget_chauffeur.montant} DH</p>
+                                            <p className="text-sm text-gray-600">
+                                                {new Date(employee.budget_chauffeur.date_attribution).toLocaleDateString('fr-FR')}
+                                            </p>
+                                            {employee.budget_chauffeur.description && (
+                                                <p className="text-sm text-gray-700 mt-1">{employee.budget_chauffeur.description}</p>
+                                            )}
                                         </div>
-                                    ))}
+                                        <Badge className={`${getBudgetStatusBadge(employee.budget_chauffeur.statut)} text-white`}>
+                                            {employee.budget_chauffeur.statut}
+                                        </Badge>
+                                    </div>
                                 </div>
                             ) : (
                                 <p className="text-gray-500">Aucun budget attribué</p>
@@ -606,7 +653,60 @@ export default function Show({ employee, salaireCalculations, produits }) {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-gray-500">Historique de travail affiché dans les calculs de salaire ci-dessus</p>
+                            {historiqueTravail?.data?.length > 0 ? (
+                                <div className="space-y-4">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Type de salaire</TableHead>
+                                                <TableHead>Quantité</TableHead>
+                                                <TableHead>Montant gagné</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {historiqueTravail.data.map((historique) => (
+                                                <TableRow key={historique.id}>
+                                                    <TableCell>
+                                                        {new Date(historique.date).toLocaleDateString('fr-FR')}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {historique.salaire?.type === 'journalier' && 'Journalier'}
+                                                        {historique.salaire?.type === 'horaire' && 'Horaire'}
+                                                        {historique.salaire?.type === 'par_produit' && `Par produit - ${historique.salaire?.produit?.nom}`}
+                                                    </TableCell>
+                                                    <TableCell>{historique.quantite}</TableCell>
+                                                    <TableCell className="font-medium text-green-600">
+                                                        {historique.montant_gagne} DH
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                    
+                                    {/* Pagination */}
+                                    {historiqueTravail.links && (
+                                        <div className="flex justify-center space-x-1">
+                                            {historiqueTravail.links.map((link, index) => (
+                                                <Link
+                                                    key={index}
+                                                    href={link.url || '#'}
+                                                    className={`px-3 py-2 text-sm rounded-md ${
+                                                        link.active
+                                                            ? 'bg-yellow-500 text-white'
+                                                            : link.url
+                                                            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                    }`}
+                                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500">Aucun historique de travail</p>
+                            )}
                         </CardContent>
                     </Card>
                 )}
@@ -637,6 +737,8 @@ export default function Show({ employee, salaireCalculations, produits }) {
                     </Card>
                 )}
             </div>
+
+
         </AdminLayout>
     );
 }

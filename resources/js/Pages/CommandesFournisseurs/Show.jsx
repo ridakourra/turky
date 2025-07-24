@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AdminLayout';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Badge } from '@/Components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
-import { 
-    ArrowLeft, 
-    Building2, 
-    Calendar, 
-    DollarSign, 
-    Package, 
-    FileText, 
-    Trash2, 
-    Phone, 
+import {
+    ArrowLeft,
+    Building2,
+    Calendar,
+    DollarSign,
+    Package,
+    FileText,
+    Trash2,
+    Phone,
     Mail,
     MapPin,
     AlertTriangle
@@ -23,7 +23,7 @@ import { router } from '@inertiajs/react';
 
 export default function Show({ commande }) {
     const [deleteDialog, setDeleteDialog] = useState(false);
-    
+
     const { delete: destroy, processing } = useForm();
 
     const formatPrice = (price) => {
@@ -68,7 +68,7 @@ export default function Show({ commande }) {
     return (
         <AuthenticatedLayout>
             <Head title={`Commande #${commande.id}`} />
-            
+
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -79,7 +79,7 @@ export default function Show({ commande }) {
                                 Retour
                             </Button>
                         </Link>
-                        
+
                         <div className="flex items-center gap-3">
                             <Package className="h-8 w-8 text-yellow-600" />
                             <div>
@@ -88,16 +88,16 @@ export default function Show({ commande }) {
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                         {canDelete() ? (
                             <Badge variant="secondary">Modifiable</Badge>
                         ) : (
                             <Badge variant="default" className="bg-yellow-500">En cours</Badge>
                         )}
-                        
+
                         {canDelete() && (
-                            <Button 
+                            <Button
                                 variant="outline"
                                 onClick={() => setDeleteDialog(true)}
                                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -129,7 +129,7 @@ export default function Show({ commande }) {
                                             <span className="font-medium">{formatDate(commande.date_commande)}</span>
                                         </div>
                                     </div>
-                                    
+
                                     <div>
                                         <label className="text-sm font-medium text-gray-500">Date de création</label>
                                         <div className="flex items-center gap-2 mt-1">
@@ -138,7 +138,7 @@ export default function Show({ commande }) {
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 {commande.commentaire && (
                                     <div>
                                         <label className="text-sm font-medium text-gray-500">Commentaire</label>
@@ -214,21 +214,21 @@ export default function Show({ commande }) {
                                         <p className="text-gray-600">{commande.fournisseur.contact_nom}</p>
                                     )}
                                 </div>
-                                
+
                                 {commande.fournisseur?.telephone && (
                                     <div className="flex items-center gap-2">
                                         <Phone className="h-4 w-4 text-gray-400" />
                                         <span className="text-sm">{commande.fournisseur.telephone}</span>
                                     </div>
                                 )}
-                                
+
                                 {commande.fournisseur?.email && (
                                     <div className="flex items-center gap-2">
                                         <Mail className="h-4 w-4 text-gray-400" />
                                         <span className="text-sm">{commande.fournisseur.email}</span>
                                     </div>
                                 )}
-                                
+
                                 {commande.fournisseur?.adresse && (
                                     <div className="flex items-start gap-2">
                                         <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
@@ -252,12 +252,12 @@ export default function Show({ commande }) {
                                         <span className="text-gray-600">Montant total</span>
                                         <span className="font-semibold text-lg">{formatPrice(commande.montant_total)}</span>
                                     </div>
-                                    
+
                                     <div className="flex justify-between items-center">
                                         <span className="text-gray-600">Nombre de produits</span>
                                         <span className="font-medium">{commande.lignes_commandes?.length || 0}</span>
                                     </div>
-                                    
+
                                     <div className="flex justify-between items-center">
                                         <span className="text-gray-600">Quantité totale</span>
                                         <span className="font-medium">
@@ -302,8 +302,8 @@ export default function Show({ commande }) {
                         <Button variant="outline" onClick={() => setDeleteDialog(false)}>
                             Annuler
                         </Button>
-                        <Button 
-                            variant="destructive" 
+                        <Button
+                            variant="destructive"
                             onClick={handleDelete}
                             disabled={processing}
                         >

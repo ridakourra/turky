@@ -47,9 +47,9 @@ class Employee extends Authenticatable
         return $this->hasMany(Absence::class);
     }
 
-    public function budgetChauffeurs(): HasMany
+    public function budgetChauffeur(): HasOne
     {
-        return $this->hasMany(BudgetChauffeur::class, 'chauffeur_id');
+        return $this->hasOne(BudgetChauffeur::class, 'chauffeur_id');
     }
 
     public function vehicules(): HasMany

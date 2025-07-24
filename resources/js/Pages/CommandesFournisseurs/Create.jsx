@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AdminLayout';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -10,12 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Badge } from '@/Components/ui/badge';
-import { 
-    ArrowLeft, 
-    Plus, 
-    Search, 
-    Trash2, 
-    Package, 
+import {
+    ArrowLeft,
+    Plus,
+    Search,
+    Trash2,
+    Package,
     Building2,
     Calendar,
     DollarSign,
@@ -29,8 +29,7 @@ export default function Create({ fournisseurs }) {
     const [productSearch, setProductSearch] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [searchLoading, setSearchLoading] = useState(false);
-    const [selectedProducts, setSelectedProducts] = useState([]);
-    
+
     const { data, setData, post, processing, errors } = useForm({
         fournisseur_id: '',
         date_commande: new Date().toISOString().split('T')[0],
@@ -42,7 +41,7 @@ export default function Create({ fournisseurs }) {
     const searchProducts = async (searchTerm = '') => {
         setSearchLoading(true);
         try {
-            const response = await fetch(`/commandes-fournisseurs/products?search=${encodeURIComponent(searchTerm)}`);
+            const response = await fetch(`/commandes-fournisseurs/produits/${searchTerm}`);
             const result = await response.json();
             setSearchResults(result.data || []);
         } catch (error) {
@@ -67,13 +66,13 @@ export default function Create({ fournisseurs }) {
 
     // Add product to order
     const addProduct = (product) => {
-        const existingIndex = selectedProducts.findIndex(p => p.id === product.id);
-        
+        const existingIndex = data.produits.findIndex(p => p.id === product.id);
+
         if (existingIndex >= 0) {
             // Update quantity if product already exists
-            const updatedProducts = [...selectedProducts];
+            const updatedProducts = [...data.produits];
             updatedProducts[existingIndex].quantite += 1;
-            setSelectedProducts(updatedProducts);
+            setData('produits', updatedProducts);
         } else {
             // Add new product
             const newProduct = {
@@ -81,9 +80,9 @@ export default function Create({ fournisseurs }) {
                 quantite: 1,
                 prix_unitaire: product.prix_unitaire || 0
             };
-            setSelectedProducts([...selectedProducts, newProduct]);
+            setData('produits', [...data.produits, newProduct]);
         }
-        
+
         setSearchDialog(false);
         setProductSearch('');
     };
@@ -94,33 +93,33 @@ export default function Create({ fournisseurs }) {
             removeProduct(productId);
             return;
         }
-        
-        const updatedProducts = selectedProducts.map(product => 
-            product.id === productId 
+
+        const updatedProducts = data.produits.map(product =>
+            product.id === productId
                 ? { ...product, quantite: parseFloat(quantite) }
                 : product
         );
-        setSelectedProducts(updatedProducts);
+        setData('produits', updatedProducts);
     };
 
     // Update product price
     const updateProductPrice = (productId, prix) => {
-        const updatedProducts = selectedProducts.map(product => 
-            product.id === productId 
+        const updatedProducts = data.produits.map(product =>
+            product.id === productId
                 ? { ...product, prix_unitaire: parseFloat(prix) || 0 }
                 : product
         );
-        setSelectedProducts(updatedProducts);
+        setData('produits', updatedProducts);
     };
 
     // Remove product
     const removeProduct = (productId) => {
-        setSelectedProducts(selectedProducts.filter(product => product.id !== productId));
+        setData('produits', data.produits.filter(product => product.id !== productId));
     };
 
     // Calculate total
     const calculateTotal = () => {
-        return selectedProducts.reduce((total, product) => {
+        return data.produits.reduce((total, product) => {
             return total + (product.quantite * product.prix_unitaire);
         }, 0);
     };
@@ -136,30 +135,27 @@ export default function Create({ fournisseurs }) {
     // Handle form submission
     const handleSubmit = (e) => {
         e.preventDefault();
-        
-        if (selectedProducts.length === 0) {
+
+        if (data.produits.length === 0) {
             alert('Veuillez ajouter au moins un produit à la commande.');
             return;
         }
-        
-        const formData = {
-            ...data,
-            produits: selectedProducts.map(product => ({
-                produit_id: product.id,
-                quantite: product.quantite,
-                prix_unitaire: product.prix_unitaire
-            }))
-        };
-        
+
         post(route('commandes-fournisseurs.store'), {
-            data: formData
+            onFinish: () => {
+                console.log(errors)
+            }
         });
+    };
+
+    const onSuccess = () => {
+        router.push(route('commandes-fournisseurs.index'));
     };
 
     return (
         <AuthenticatedLayout>
             <Head title="Nouvelle Commande Fournisseur" />
-            
+
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-4">
@@ -169,7 +165,7 @@ export default function Create({ fournisseurs }) {
                             Retour
                         </Button>
                     </Link>
-                    
+
                     <div className="flex items-center gap-3">
                         <ShoppingCart className="h-8 w-8 text-yellow-600" />
                         <div>
@@ -260,7 +256,7 @@ export default function Create({ fournisseurs }) {
                                     <Package className="h-5 w-5" />
                                     Produits commandés
                                 </div>
-                                
+
                                 <Dialog open={searchDialog} onOpenChange={setSearchDialog}>
                                     <DialogTrigger asChild>
                                         <Button type="button" className="bg-yellow-500 hover:bg-yellow-600">
@@ -275,7 +271,7 @@ export default function Create({ fournisseurs }) {
                                                 Recherchez et sélectionnez les produits à ajouter à la commande.
                                             </DialogDescription>
                                         </DialogHeader>
-                                        
+
                                         <div className="space-y-4">
                                             <div className="flex gap-2">
                                                 <div className="flex-1">
@@ -294,7 +290,7 @@ export default function Create({ fournisseurs }) {
                                                     {searchLoading ? 'Recherche...' : 'Rechercher'}
                                                 </Button>
                                             </div>
-                                            
+
                                             <div className="max-h-96 overflow-y-auto">
                                                 <Table>
                                                     <TableHeader>
@@ -325,9 +321,9 @@ export default function Create({ fournisseurs }) {
                                                                         <Button
                                                                             size="sm"
                                                                             onClick={() => addProduct(product)}
-                                                                            disabled={selectedProducts.some(p => p.id === product.id)}
+                                                                            disabled={data.produits.some(p => p.id === product.id)}
                                                                         >
-                                                                            {selectedProducts.some(p => p.id === product.id) ? 'Ajouté' : 'Ajouter'}
+                                                                            {data.produits.some(p => p.id === product.id) ? 'Ajouté' : 'Ajouter'}
                                                                         </Button>
                                                                     </TableCell>
                                                                 </TableRow>
@@ -353,7 +349,7 @@ export default function Create({ fournisseurs }) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {selectedProducts.length > 0 ? (
+                            {data.produits.length > 0 ? (
                                 <div className="space-y-4">
                                     <div className="overflow-x-auto">
                                         <Table>
@@ -367,7 +363,7 @@ export default function Create({ fournisseurs }) {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {selectedProducts.map((product) => (
+                                                {data.produits.map((product) => (
                                                     <TableRow key={product.id}>
                                                         <TableCell>
                                                             <div>
@@ -415,7 +411,7 @@ export default function Create({ fournisseurs }) {
                                             </TableBody>
                                         </Table>
                                     </div>
-                                    
+
                                     {/* Total */}
                                     <div className="flex justify-end">
                                         <div className="bg-gray-50 p-4 rounded-lg">
@@ -433,7 +429,7 @@ export default function Create({ fournisseurs }) {
                                     <p className="text-gray-500 mb-4">Cliquez sur "Ajouter un produit" pour commencer</p>
                                 </div>
                             )}
-                            
+
                             {errors.produits && (
                                 <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg">
                                     <AlertCircle className="h-4 w-4" />
@@ -450,9 +446,9 @@ export default function Create({ fournisseurs }) {
                                 Annuler
                             </Button>
                         </Link>
-                        <Button 
-                            type="submit" 
-                            disabled={processing || selectedProducts.length === 0}
+                        <Button
+                            type="submit"
+                            disabled={processing || data.produits.length === 0}
                             className="bg-yellow-500 hover:bg-yellow-600"
                         >
                             {processing ? 'Création...' : 'Créer la commande'}

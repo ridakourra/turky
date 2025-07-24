@@ -9,7 +9,7 @@ import { Textarea } from '@/Components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { ArrowLeft, Save, Truck } from 'lucide-react';
 
-export default function Edit({ vehicule, employees }) {
+export default function Edit({ vehicule, chauffeurs }) {
     const { data, setData, put, processing, errors } = useForm({
         matricule: vehicule.matricule || '',
         marque: vehicule.marque || '',
@@ -27,7 +27,7 @@ export default function Edit({ vehicule, employees }) {
         put(route('vehicules.update', vehicule.id));
     };
 
-    const chauffeurs = employees?.filter(emp => emp.role === 'chauffeur') || [];
+    // const chauffeurs = chauffeurs?.filter(emp => emp.role === 'chauffeur') || [];
 
     return (
         <AdminLayout>

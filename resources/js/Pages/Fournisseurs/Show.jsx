@@ -1,18 +1,18 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AdminLayout';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Separator } from '@/Components/ui/separator';
-import { 
-    ArrowLeft, 
-    Building2, 
-    User, 
-    Phone, 
-    Mail, 
-    MapPin, 
-    FileText, 
+import {
+    ArrowLeft,
+    Building2,
+    User,
+    Phone,
+    Mail,
+    MapPin,
+    FileText,
     Hash,
     Edit,
     ShoppingCart,
@@ -94,7 +94,7 @@ export default function FournisseursShow({ fournisseur, commandes }) {
                                         </div>
                                         <p className="text-lg font-semibold">{fournisseur.nom_societe}</p>
                                     </div>
-                                    
+
                                     {fournisseur.contact_nom && (
                                         <div>
                                             <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-1">
@@ -117,7 +117,7 @@ export default function FournisseursShow({ fournisseur, commandes }) {
                                             <p>{fournisseur.telephone}</p>
                                         </div>
                                     )}
-                                    
+
                                     {fournisseur.email && (
                                         <div>
                                             <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-1">
@@ -127,7 +127,7 @@ export default function FournisseursShow({ fournisseur, commandes }) {
                                             <p>{fournisseur.email}</p>
                                         </div>
                                     )}
-                                    
+
                                     {fournisseur.addresse && (
                                         <div>
                                             <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-1">
@@ -150,7 +150,7 @@ export default function FournisseursShow({ fournisseur, commandes }) {
                                             <p className="font-mono">{fournisseur.ice}</p>
                                         </div>
                                     )}
-                                    
+
                                     {fournisseur.rc && (
                                         <div>
                                             <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-1">
@@ -160,7 +160,7 @@ export default function FournisseursShow({ fournisseur, commandes }) {
                                             <p className="font-mono">{fournisseur.rc}</p>
                                         </div>
                                     )}
-                                    
+
                                     {fournisseur.if && (
                                         <div>
                                             <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-1">
@@ -204,14 +204,14 @@ export default function FournisseursShow({ fournisseur, commandes }) {
                                                     <p className="font-semibold text-lg">{formatCurrency(commande.montant_total)}</p>
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                                 <div className="flex items-center gap-2">
                                                     <Calendar className="h-4 w-4 text-gray-400" />
                                                     <span className="text-gray-600">Date:</span>
                                                     <span>{format(new Date(commande.date_commande), 'dd/MM/yyyy', { locale: fr })}</span>
                                                 </div>
-                                                
+
                                                 {commande.date_livraison_prevue && (
                                                     <div className="flex items-center gap-2">
                                                         <Package className="h-4 w-4 text-gray-400" />
@@ -219,14 +219,14 @@ export default function FournisseursShow({ fournisseur, commandes }) {
                                                         <span>{format(new Date(commande.date_livraison_prevue), 'dd/MM/yyyy', { locale: fr })}</span>
                                                     </div>
                                                 )}
-                                                
+
                                                 <div className="flex items-center gap-2">
                                                     <DollarSign className="h-4 w-4 text-gray-400" />
                                                     <span className="text-gray-600">Montant HT:</span>
                                                     <span>{formatCurrency(commande.montant_ht || 0)}</span>
                                                 </div>
                                             </div>
-                                            
+
                                             {commande.commentaire && (
                                                 <div className="mt-3 pt-3 border-t">
                                                     <p className="text-sm text-gray-600">
@@ -236,7 +236,7 @@ export default function FournisseursShow({ fournisseur, commandes }) {
                                             )}
                                         </div>
                                     ))}
-                                    
+
                                     {/* Pagination */}
                                     {commandes.links && (
                                         <div className="flex items-center justify-center gap-2 mt-6">

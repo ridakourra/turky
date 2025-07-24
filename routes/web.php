@@ -59,6 +59,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
     Route::post('/employees/{employee}/absences', [EmployeeController::class, 'storeAbsence'])->name('employees.absences.store');
     Route::post('/employees/{employee}/budgets', [EmployeeController::class, 'storeBudget'])->name('employees.budgets.store');
+    Route::put('/employees/{employee}/budgets/{budget}', [EmployeeController::class, 'updateBudget'])->name('employees.budgets.update');
     Route::post('/employees/{employee}/historique', [EmployeeController::class, 'storeHistoriqueTravail'])->name('employees.historique.store');
     Route::post('/employees/{employee}/pay-salary', [EmployeeController::class, 'paySalary'])->name('employees.pay-salary');
 

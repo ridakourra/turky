@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AdminLayout';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -9,16 +9,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/Components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
-import { 
-    Plus, 
-    Search, 
-    Filter, 
-    ArrowUpDown, 
-    ArrowUp, 
-    ArrowDown, 
-    Eye, 
-    Trash2, 
-    Package, 
+import {
+    Plus,
+    Search,
+    Filter,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    Eye,
+    Trash2,
+    Package,
     Calendar,
     DollarSign,
     Building2
@@ -28,7 +28,7 @@ import { router } from '@inertiajs/react';
 export default function Index({ commandes, fournisseurs, filters }) {
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState({ open: false, commande: null });
-    
+
     const { data, setData, get, delete: destroy, processing } = useForm({
         search: filters?.search || '',
         fournisseur_id: filters?.fournisseur_id || 'all',
@@ -50,7 +50,7 @@ export default function Index({ commandes, fournisseurs, filters }) {
     const handleSort = (field) => {
         const newDirection = data.sort === field && data.direction === 'asc' ? 'desc' : 'asc';
         setData(prevData => ({ ...prevData, sort: field, direction: newDirection }));
-        
+
         get(route('commandes-fournisseurs.index'), {
             data: { ...data, sort: field, direction: newDirection },
             preserveState: true,
@@ -82,7 +82,7 @@ export default function Index({ commandes, fournisseurs, filters }) {
             sort: 'created_at',
             direction: 'desc'
         });
-        
+
         get(route('commandes-fournisseurs.index'));
     };
 
@@ -124,7 +124,7 @@ export default function Index({ commandes, fournisseurs, filters }) {
     return (
         <AuthenticatedLayout>
             <Head title="Commandes Fournisseurs" />
-            
+
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -135,7 +135,7 @@ export default function Index({ commandes, fournisseurs, filters }) {
                             <p className="text-gray-600 mt-1">Gérez vos commandes auprès des fournisseurs</p>
                         </div>
                     </div>
-                    
+
                     <Link href={route('commandes-fournisseurs.create')}>
                         <Button className="bg-yellow-500 hover:bg-yellow-600">
                             <Plus className="h-4 w-4 mr-2" />
@@ -166,8 +166,8 @@ export default function Index({ commandes, fournisseurs, filters }) {
                                     <Search className="h-4 w-4 mr-2" />
                                     Rechercher
                                 </Button>
-                                <Button 
-                                    variant="outline" 
+                                <Button
+                                    variant="outline"
                                     onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                                 >
                                     <Filter className="h-4 w-4 mr-2" />
@@ -268,7 +268,7 @@ export default function Index({ commandes, fournisseurs, filters }) {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead 
+                                        <TableHead
                                             className="cursor-pointer hover:bg-gray-50"
                                             onClick={() => handleSort('id')}
                                         >
@@ -277,7 +277,7 @@ export default function Index({ commandes, fournisseurs, filters }) {
                                                 {getSortIcon('id')}
                                             </div>
                                         </TableHead>
-                                        <TableHead 
+                                        <TableHead
                                             className="cursor-pointer hover:bg-gray-50"
                                             onClick={() => handleSort('fournisseur')}
                                         >
@@ -286,7 +286,7 @@ export default function Index({ commandes, fournisseurs, filters }) {
                                                 {getSortIcon('fournisseur')}
                                             </div>
                                         </TableHead>
-                                        <TableHead 
+                                        <TableHead
                                             className="cursor-pointer hover:bg-gray-50"
                                             onClick={() => handleSort('date_commande')}
                                         >
@@ -295,7 +295,7 @@ export default function Index({ commandes, fournisseurs, filters }) {
                                                 {getSortIcon('date_commande')}
                                             </div>
                                         </TableHead>
-                                        <TableHead 
+                                        <TableHead
                                             className="cursor-pointer hover:bg-gray-50"
                                             onClick={() => handleSort('montant_total')}
                                         >
@@ -356,8 +356,8 @@ export default function Index({ commandes, fournisseurs, filters }) {
                                                             </Button>
                                                         </Link>
                                                         {canDelete(commande) && (
-                                                            <Button 
-                                                                variant="outline" 
+                                                            <Button
+                                                                variant="outline"
                                                                 size="sm"
                                                                 onClick={() => handleDelete(commande)}
                                                                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -398,10 +398,10 @@ export default function Index({ commandes, fournisseurs, filters }) {
                                                 </Button>
                                             );
                                         }
-                                        
+
                                         return (
                                             <Link key={index} href={link.url}>
-                                                <Button 
+                                                <Button
                                                     variant={link.active ? "default" : "outline"}
                                                     className={link.active ? "bg-yellow-500 hover:bg-yellow-600" : ""}
                                                 >
@@ -428,14 +428,14 @@ export default function Index({ commandes, fournisseurs, filters }) {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={() => setDeleteDialog({ open: false, commande: null })}
                         >
                             Annuler
                         </Button>
-                        <Button 
-                            variant="destructive" 
+                        <Button
+                            variant="destructive"
                             onClick={confirmDelete}
                             disabled={processing}
                         >

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AdminLayout';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -14,7 +14,7 @@ import { ArrowLeft, CreditCard, Truck, User, Calendar, DollarSign, Package, File
 export default function Show({ commande }) {
     const [showPaymentDialog, setShowPaymentDialog] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    
+
     const { data, setData, post, delete: destroy, processing, errors } = useForm({
         montant: '',
         mode_paiement: 'especes',
@@ -41,7 +41,7 @@ export default function Show({ commande }) {
         if (!paiement) {
             return <Badge variant="destructive">Non payé</Badge>;
         }
-        
+
         switch (paiement.statut) {
             case 'paye':
                 return <Badge variant="default" className="bg-green-500">Payé</Badge>;
@@ -90,7 +90,7 @@ export default function Show({ commande }) {
     return (
         <AuthenticatedLayout>
             <Head title={`Commande #${commande.id}`} />
-            
+
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -106,10 +106,10 @@ export default function Show({ commande }) {
                             <p className="text-gray-600 mt-1">Détails de la commande client</p>
                         </div>
                     </div>
-                    
+
                     <div className="flex gap-2">
                         {getMontantRestant() > 0 && (
-                            <Button 
+                            <Button
                                 onClick={() => setShowPaymentDialog(true)}
                                 className="bg-green-500 hover:bg-green-600"
                             >
@@ -117,7 +117,7 @@ export default function Show({ commande }) {
                                 Ajouter un paiement
                             </Button>
                         )}
-                        <Button 
+                        <Button
                             variant="destructive"
                             onClick={() => setShowDeleteDialog(true)}
                         >
@@ -147,7 +147,7 @@ export default function Show({ commande }) {
                                             <span className="font-medium">{formatDate(commande.date_commande)}</span>
                                         </div>
                                     </div>
-                                    
+
                                     <div>
                                         <Label className="text-sm font-medium text-gray-500">Montant total</Label>
                                         <div className="flex items-center mt-1">
@@ -155,7 +155,7 @@ export default function Show({ commande }) {
                                             <span className="font-bold text-lg">{formatPrice(commande.montant_total)}</span>
                                         </div>
                                     </div>
-                                    
+
                                     <div>
                                         <Label className="text-sm font-medium text-gray-500">Profit net</Label>
                                         <div className="flex items-center mt-1">
@@ -163,7 +163,7 @@ export default function Show({ commande }) {
                                             <span className="font-bold text-lg text-green-600">{formatPrice(commande.profit_net)}</span>
                                         </div>
                                     </div>
-                                    
+
                                     <div>
                                         <Label className="text-sm font-medium text-gray-500">Statut paiement</Label>
                                         <div className="mt-1">
@@ -171,7 +171,7 @@ export default function Show({ commande }) {
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 {commande.notes && (
                                     <div className="mt-4">
                                         <Label className="text-sm font-medium text-gray-500">Notes</Label>
@@ -195,21 +195,21 @@ export default function Show({ commande }) {
                                         <Label className="text-sm font-medium text-gray-500">Nom complet</Label>
                                         <p className="mt-1 font-medium">{commande.client?.nom_complet}</p>
                                     </div>
-                                    
+
                                     {commande.client?.telephone && (
                                         <div>
                                             <Label className="text-sm font-medium text-gray-500">Téléphone</Label>
                                             <p className="mt-1">{commande.client.telephone}</p>
                                         </div>
                                     )}
-                                    
+
                                     {commande.client?.email && (
                                         <div>
                                             <Label className="text-sm font-medium text-gray-500">Email</Label>
                                             <p className="mt-1">{commande.client.email}</p>
                                         </div>
                                     )}
-                                    
+
                                     {commande.client?.adresse && (
                                         <div>
                                             <Label className="text-sm font-medium text-gray-500">Adresse</Label>
@@ -242,7 +242,7 @@ export default function Show({ commande }) {
                                                 </div>
                                             </div>
                                         )}
-                                        
+
                                         {commande.chauffeur && (
                                             <div>
                                                 <Label className="text-sm font-medium text-gray-500">Chauffeur</Label>
@@ -311,14 +311,14 @@ export default function Show({ commande }) {
                                         <span className="text-sm text-gray-500">Montant total:</span>
                                         <span className="font-medium">{formatPrice(commande.montant_total)}</span>
                                     </div>
-                                    
+
                                     <div className="flex justify-between">
                                         <span className="text-sm text-gray-500">Montant payé:</span>
                                         <span className="font-medium text-green-600">
                                             {formatPrice(commande.paiement?.montant_paye || 0)}
                                         </span>
                                     </div>
-                                    
+
                                     <div className="flex justify-between border-t pt-2">
                                         <span className="text-sm font-medium">Montant restant:</span>
                                         <span className={`font-bold ${
@@ -337,14 +337,14 @@ export default function Show({ commande }) {
                                                 <span className="text-gray-500">Mode:</span>
                                                 <span className="capitalize">{commande.paiement.mode_paiement}</span>
                                             </div>
-                                            
+
                                             {commande.paiement.date_paiement && (
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-500">Date:</span>
                                                     <span>{formatDate(commande.paiement.date_paiement)}</span>
                                                 </div>
                                             )}
-                                            
+
                                             {commande.paiement.notes && (
                                                 <div>
                                                     <span className="text-gray-500">Notes:</span>
@@ -369,17 +369,17 @@ export default function Show({ commande }) {
                                             <span className="text-gray-500">Type:</span>
                                             <span className="capitalize">{commande.transaction.type}</span>
                                         </div>
-                                        
+
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">Montant:</span>
                                             <span className="font-medium">{formatPrice(commande.transaction.montant)}</span>
                                         </div>
-                                        
+
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">Date:</span>
                                             <span>{formatDate(commande.transaction.date_transaction)}</span>
                                         </div>
-                                        
+
                                         {commande.transaction.description && (
                                             <div>
                                                 <span className="text-gray-500">Description:</span>
@@ -403,7 +403,7 @@ export default function Show({ commande }) {
                             Enregistrer un nouveau paiement pour cette commande
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     <form onSubmit={handlePayment} className="space-y-4">
                         <div>
                             <Label htmlFor="montant">Montant à payer *</Label>

@@ -104,18 +104,15 @@ class CommandeFournisseurController extends Controller
     /**
      * Get products for order creation
      */
-    public function getProducts(Request $request)
+    public function getProducts(Request $request, $search = null)
     {
         $query = Produit::select('id', 'nom', 'unite_mesure', 'prix_unitaire', 'description');
 
-        if ($request->filled('search')) {
-            $query->where('nom', 'like', "%{$request->search}%");
-        }
+        $query->where('nom', 'like', "%{$search}%");
 
         $produits = $query->orderBy('nom')
             ->paginate(10)
             ->withQueryString();
-
         return response()->json($produits);
     }
 
@@ -128,11 +125,13 @@ class CommandeFournisseurController extends Controller
             'fournisseur_id' => 'required|exists:fournisseurs,id',
             'date_commande' => 'required|date',
             'commentaire' => 'nullable|string|max:1000',
-            'produits' => 'required|array|min:1',
-            'produits.*.produit_id' => 'required|exists:produits,id',
-            'produits.*.quantite' => 'required|numeric|min:0.01',
-            'produits.*.prix_unitaire' => 'required|numeric|min:0'
+            'produits' => 'nullable|array|min:1',
+            'produits.*.produit_id' => 'nullable|exists:produits,id',
+            'produits.*.quantite' => 'nullable|numeric|min:1',
+            'produits.*.prix_unitaire' => 'nullable|numeric|min:0'
         ]);
+
+        // dd($request->all());
 
         DB::beginTransaction();
 
@@ -149,7 +148,7 @@ class CommandeFournisseurController extends Controller
 
             // Process each product
             foreach ($request->produits as $produitData) {
-                $produit = Produit::findOrFail($produitData['produit_id']);
+                $produit = Produit::findOrFail($produitData['id']);
                 $quantite = $produitData['quantite'];
                 $prixUnitaire = $produitData['prix_unitaire'];
                 $montantLigne = $quantite * $prixUnitaire;
@@ -185,22 +184,23 @@ class CommandeFournisseurController extends Controller
             // Update order total
             $commande->update(['montant_total' => $montantTotal]);
 
-            // Create transaction record
-            Transaction::create([
-                'type_transaction' => 'sortie',
-                'reference_type' => CommandeFournisseur::class,
-                'reference_id' => $commande->id,
-                'montant' => $montantTotal,
-                'description' => "Commande fournisseur #{$commande->id} - {$commande->fournisseur->nom_societe}"
-            ]);
+            // // Create transaction record
+            // Transaction::create([
+            //     'type_transaction' => 'sortie',
+            //     'reference_type' => CommandeFournisseur::class,
+            //     'reference_id' => $commande->id,
+            //     'montant' => $montantTotal,
+            //     'description' => "Commande fournisseur #{$commande->id} - {$commande->fournisseur->nom_societe}"
+            // ]);
 
             DB::commit();
 
-            return redirect()->route('commandes-fournisseurs.show', $commande)
+            return redirect()->route('commandes-fournisseurs.index')
                 ->with('success', 'Commande créée avec succès.');
 
         } catch (\Exception $e) {
             DB::rollback();
+            dd($e->getMessage());
             return back()->withErrors(['error' => $e->getMessage()]);
         }
     }

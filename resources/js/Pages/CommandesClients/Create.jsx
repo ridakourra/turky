@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AdminLayout';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -93,7 +93,7 @@ export default function Create({ clients, vehicules, chauffeurs }) {
             }
             return product;
         });
-        
+
         setSelectedProducts(updatedProducts);
         updateFormData(updatedProducts);
     };
@@ -126,7 +126,7 @@ export default function Create({ clients, vehicules, chauffeurs }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
+
         if (selectedProducts.length === 0) {
             alert('Veuillez ajouter au moins un produit à la commande');
             return;
@@ -138,7 +138,7 @@ export default function Create({ clients, vehicules, chauffeurs }) {
     return (
         <AuthenticatedLayout>
             <Head title="Nouvelle Commande Client" />
-            
+
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-4">
@@ -164,8 +164,8 @@ export default function Create({ clients, vehicules, chauffeurs }) {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <Label htmlFor="client_id">Client *</Label>
-                                    <Select 
-                                        value={data.client_id} 
+                                    <Select
+                                        value={data.client_id}
                                         onValueChange={(value) => setData('client_id', value)}
                                     >
                                         <SelectTrigger>
@@ -200,8 +200,8 @@ export default function Create({ clients, vehicules, chauffeurs }) {
 
                                 <div>
                                     <Label htmlFor="vehicule_id">Véhicule</Label>
-                                    <Select 
-                                        value={data.vehicule_id} 
+                                    <Select
+                                        value={data.vehicule_id}
                                         onValueChange={(value) => setData('vehicule_id', value)}
                                     >
                                         <SelectTrigger>
@@ -222,8 +222,8 @@ export default function Create({ clients, vehicules, chauffeurs }) {
 
                                 <div>
                                     <Label htmlFor="chauffeur_id">Chauffeur</Label>
-                                    <Select 
-                                        value={data.chauffeur_id} 
+                                    <Select
+                                        value={data.chauffeur_id}
                                         onValueChange={(value) => setData('chauffeur_id', value)}
                                     >
                                         <SelectTrigger>
@@ -278,7 +278,7 @@ export default function Create({ clients, vehicules, chauffeurs }) {
                                                 Recherchez un produit par nom pour l'ajouter à la commande
                                             </DialogDescription>
                                         </DialogHeader>
-                                        
+
                                         <div className="space-y-4">
                                             <div className="flex gap-2">
                                                 <Input
@@ -443,8 +443,8 @@ export default function Create({ clients, vehicules, chauffeurs }) {
                                 Annuler
                             </Button>
                         </Link>
-                        <Button 
-                            type="submit" 
+                        <Button
+                            type="submit"
                             disabled={processing || selectedProducts.length === 0}
                             className="bg-yellow-500 hover:bg-yellow-600"
                         >
